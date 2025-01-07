@@ -1,0 +1,26 @@
+{
+  "canisters": {
+    "mutual-link-backend": {
+      "main": "src/mutual-link-backend/main.mo",
+      "type": "motoko"
+    },
+    "mutual-link-frontend": {
+      "dependencies": [
+        "mutual-link-backend"
+      ],
+      "source": [
+        "src/mutual-link-frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "mutual-link-frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
