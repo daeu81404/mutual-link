@@ -14,5 +14,10 @@
   "type": "module",
   "workspaces": [
     "src/mutual-link-frontend"
-  ]
+  ],
+  "dependencies": {
+    "@ant-design/icons": "^5.5.2",
+    "@types/node": "^22.10.5",
+    "antd": "^5.23.0"
+  }
 }
