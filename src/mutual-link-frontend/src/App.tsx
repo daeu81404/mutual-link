@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home/Home";
 import DoctorList from "./pages/DoctorList/DoctorList";
+import ApprovalWaiting from "./pages/ApprovalWaiting/ApprovalWaiting";
 
 function App() {
   return (
@@ -9,7 +10,7 @@ function App() {
         <Route path="/" element={<Home />}>
           <Route index element={<Navigate to="/doctor-list" replace />} />
           <Route path="doctor-list" element={<DoctorList />} />
-          <Route path="approval-waiting" element={<div>승인대기</div>} />
+          <Route path="approval-waiting" element={<ApprovalWaiting />} />
           <Route
             path="medical-data-send"
             element={<div>진료데이터(송신)</div>}
