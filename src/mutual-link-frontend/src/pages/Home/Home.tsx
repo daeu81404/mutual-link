@@ -1,6 +1,7 @@
 import { Layout, Menu, Button, Typography, Space } from "antd";
 import { MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
 import { useState } from "react";
+import { useNavigate, Outlet } from "react-router-dom";
 import { menuItems } from "@/constants/menuItems";
 
 const { Header, Sider, Content } = Layout;
@@ -8,20 +9,21 @@ const { Title, Text } = Typography;
 
 export default function Home() {
   const [collapsed, setCollapsed] = useState(false);
+  const navigate = useNavigate();
 
   const handleMenuClick = (e: { key: string }) => {
     switch (e.key) {
       case "doctorList":
-        console.log("의사목록 선택됨");
+        navigate("/doctor-list");
         break;
       case "approvalWaiting":
-        console.log("승인대기 선택됨");
+        navigate("/approval-waiting");
         break;
       case "medicalDataSend":
-        console.log("진료데이터(송신) 선택됨");
+        navigate("/medical-data-send");
         break;
       case "medicalDataReceive":
-        console.log("진료데이터(수신) 선택됨");
+        navigate("/medical-data-receive");
         break;
     }
   };
@@ -56,38 +58,22 @@ export default function Home() {
       </Header>
       <Layout>
         <Sider
+          breakpoint="lg"
+          collapsedWidth="0"
           width={250}
           theme="light"
-          breakpoint="lg"
-          collapsedWidth={80}
           collapsed={collapsed}
-          onCollapse={(collapsed) => setCollapsed(collapsed)}
+          onCollapse={setCollapsed}
         >
           <Menu
             mode="inline"
-            defaultSelectedKeys={["doctors"]}
-            style={{ height: "100%", borderRight: 0 }}
+            defaultSelectedKeys={["doctorList"]}
             items={menuItems}
             onClick={handleMenuClick}
           />
         </Sider>
-        <Content
-          style={{
-            padding: 24,
-            background: "linear-gradient(135deg, #4a90e2 0%, #357abd 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div style={{ textAlign: "center", color: "white" }}>
-            <Title style={{ color: "white", fontSize: "3rem" }}>
-              Mutual Link
-            </Title>
-            <Text style={{ color: "white", fontSize: "1.2rem" }}>
-              응급 환자 이송 플랫폼
-            </Text>
-          </div>
+        <Content style={{ padding: 24, background: "#fff" }}>
+          <Outlet />
         </Content>
       </Layout>
     </Layout>
