@@ -14,16 +14,16 @@ export default function Home() {
   const handleMenuClick = (e: { key: string }) => {
     switch (e.key) {
       case "doctorList":
-        navigate("/doctor-list");
+        navigate("/home/doctor-list");
         break;
       case "approvalWaiting":
-        navigate("/approval-waiting");
+        navigate("/home/approval-waiting");
         break;
       case "medicalDataSend":
-        navigate("/medical-data-send");
+        navigate("/home/medical-data-send");
         break;
       case "medicalDataReceive":
-        navigate("/medical-data-receive");
+        navigate("/home/medical-data-receive");
         break;
     }
   };

@@ -3,13 +3,16 @@ import Home from "./pages/Home/Home";
 import DoctorList from "./pages/DoctorList/DoctorList";
 import ApprovalWaiting from "./pages/ApprovalWaiting/ApprovalWaiting";
 import MedicalData from "./pages/MedicalData/MedicalData";
+import Login from "./pages/Login/Login";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Home />}>
-          <Route index element={<Navigate to="/doctor-list" replace />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/home" element={<Home />}>
+          <Route index element={<Navigate to="/home/doctor-list" replace />} />
           <Route path="doctor-list" element={<DoctorList />} />
           <Route path="approval-waiting" element={<ApprovalWaiting />} />
           <Route
