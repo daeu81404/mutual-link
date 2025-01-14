@@ -41,4 +41,7 @@ export default defineConfig({
     ],
     dedupe: ["@dfinity/agent"],
   },
+  define: {
+    global: "globalThis",
+  },
 });
