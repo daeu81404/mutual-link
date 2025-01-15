@@ -14,6 +14,7 @@ interface AuthContextType {
     hospital: string;
     department: string;
     name: string;
+    role?: "admin" | "user";
   } | null;
   login: (userData: any) => void;
   logout: () => void;

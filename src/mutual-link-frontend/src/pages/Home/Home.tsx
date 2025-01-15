@@ -16,7 +16,7 @@ import {
 } from "@ant-design/icons";
 import { useState } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
-import { menuItems } from "@/constants/menuItems";
+import { regularMenuItems, adminMenuItems } from "@/constants/menuItems";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWeb3Auth } from "@/contexts/Web3AuthContext";
 
@@ -27,9 +27,14 @@ const { useToken } = theme;
 export default function Home() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
-  const { logout: authLogout } = useAuth();
+  const { logout: authLogout, userInfo } = useAuth();
   const { logout: web3AuthLogout } = useWeb3Auth();
   const { token } = useToken();
+
+  const menuItems = [
+    ...regularMenuItems,
+    ...(userInfo?.role === "admin" ? adminMenuItems : []),
+  ];
 
   const handleLogout = async () => {
     await web3AuthLogout();
