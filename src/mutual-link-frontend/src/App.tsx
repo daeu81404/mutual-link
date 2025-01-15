@@ -4,28 +4,40 @@ import DoctorList from "./pages/DoctorList/DoctorList";
 import ApprovalWaiting from "./pages/ApprovalWaiting/ApprovalWaiting";
 import MedicalData from "./pages/MedicalData/MedicalData";
 import Login from "./pages/Login/Login";
+import { AuthProvider } from "./contexts/AuthContext";
+import { Web3AuthProvider } from "./contexts/Web3AuthContext";
+import PrivateRoute from "./components/PrivateRoute";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/home" element={<Home />}>
-          <Route index element={<Navigate to="/home/doctor-list" replace />} />
-          <Route path="doctor-list" element={<DoctorList />} />
-          <Route path="approval-waiting" element={<ApprovalWaiting />} />
-          <Route
-            path="medical-data-send"
-            element={<MedicalData type="send" />}
-          />
-          <Route
-            path="medical-data-receive"
-            element={<MedicalData type="receive" />}
-          />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <Web3AuthProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login />} />
+            <Route element={<PrivateRoute />}>
+              <Route path="/home" element={<Home />}>
+                <Route
+                  index
+                  element={<Navigate to="/home/doctor-list" replace />}
+                />
+                <Route path="doctor-list" element={<DoctorList />} />
+                <Route path="approval-waiting" element={<ApprovalWaiting />} />
+                <Route
+                  path="medical-data-send"
+                  element={<MedicalData type="send" />}
+                />
+                <Route
+                  path="medical-data-receive"
+                  element={<MedicalData type="receive" />}
+                />
+              </Route>
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </Web3AuthProvider>
   );
 }
 
