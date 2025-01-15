@@ -28,7 +28,7 @@ const Login = () => {
         hospital: "서울대병원",
         department: "정신과",
         name: "김창남",
-        role: "user", // user|admin
+        role: "admin", // user|admin
       };
       login(userData);
       navigate("/home/doctor-list");

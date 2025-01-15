@@ -7,6 +7,8 @@ import Login from "./pages/Login/Login";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Web3AuthProvider } from "./contexts/Web3AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
+import UserManagement from "./pages/UserManagement/UserManagement";
+import HospitalManagement from "./pages/HospitalManagement/HospitalManagement";
 
 function App() {
   return (
@@ -31,6 +33,14 @@ function App() {
                 <Route
                   path="medical-data-receive"
                   element={<MedicalData type="receive" />}
+                />
+                <Route
+                  path="/home/user-management"
+                  element={<UserManagement />}
+                />
+                <Route
+                  path="/home/hospital-management"
+                  element={<HospitalManagement />}
                 />
               </Route>
             </Route>

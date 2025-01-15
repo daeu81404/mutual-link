@@ -56,6 +56,12 @@ export default function Home() {
       case "medicalDataReceive":
         navigate("/home/medical-data-receive");
         break;
+      case "userManagement":
+        navigate("/home/user-management");
+        break;
+      case "hospitalManagement":
+        navigate("/home/hospital-management");
+        break;
     }
   };
 
