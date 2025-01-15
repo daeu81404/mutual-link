@@ -31,10 +31,14 @@ const DoctorList = () => {
   useEffect(() => {
     const initActor = async () => {
       try {
-        const host = "http://localhost:4943";
+        const currentHost = window.location.hostname;
+        const host = currentHost.includes("localhost")
+          ? `http://${currentHost}:4943`
+          : "http://127.0.0.1:4943";
+
         const agent = new HttpAgent({ host });
 
-        if (host === "http://localhost:4943") {
+        if (host.includes("localhost") || host.includes("127.0.0.1")) {
           await agent.fetchRootKey();
         }
 
