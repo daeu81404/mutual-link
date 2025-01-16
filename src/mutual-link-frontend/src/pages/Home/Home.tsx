@@ -110,9 +110,9 @@ export default function Home() {
               icon={<UserOutlined />}
             />
             <div style={{ display: "flex", flexDirection: "column" }}>
-              <Text strong>김창남님</Text>
+              <Text strong>{userInfo?.name}님</Text>
               <Text type="secondary" style={{ fontSize: "12px" }}>
-                서울대병원 정신과
+                {userInfo?.hospital} {userInfo?.department}
               </Text>
             </div>
           </Space>
