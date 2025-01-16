@@ -143,13 +143,50 @@ const DoctorList = () => {
         title="환자 진료 기록 업로드"
         open={isModalOpen}
         onCancel={handleModalCancel}
-        footer={null}
+        footer={
+          <div
+            style={{
+              textAlign: "center",
+              margin: "0 -24px -24px",
+              padding: "16px 24px",
+              borderTop: "1px solid #f0f0f0",
+            }}
+          >
+            <Button
+              key="cancel"
+              onClick={handleModalCancel}
+              style={{ marginRight: 8 }}
+            >
+              취소
+            </Button>
+            <Button key="submit" type="primary" onClick={form.submit}>
+              등록
+            </Button>
+          </div>
+        }
+        width={520}
+        style={{ top: 20 }}
+        bodyStyle={{
+          padding: "24px",
+          maxHeight: "calc(100vh - 200px)",
+          overflow: "auto",
+        }}
       >
-        <Form form={form} layout="vertical" onFinish={handleModalSubmit}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleModalSubmit}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+          }}
+        >
           <Form.Item
             label="제목"
             name="title"
             rules={[{ required: true, message: "제목을 입력해주세요" }]}
+            style={{ marginBottom: 0 }}
           >
             <Input />
           </Form.Item>
@@ -158,6 +195,7 @@ const DoctorList = () => {
             label="환자명"
             name="patientName"
             rules={[{ required: true, message: "환자명을 입력해주세요" }]}
+            style={{ marginBottom: 0 }}
           >
             <Input />
           </Form.Item>
@@ -166,42 +204,69 @@ const DoctorList = () => {
             label="휴대폰"
             name="phone"
             rules={[{ required: true, message: "휴대폰 번호를 입력해주세요" }]}
+            style={{ marginBottom: 0 }}
           >
             <Input />
           </Form.Item>
 
-          <Form.Item label="소견" name="description">
-            <Input.TextArea rows={4} />
+          <Form.Item
+            label="소견"
+            name="description"
+            style={{
+              marginBottom: 0,
+              marginLeft: -24,
+              marginRight: -24,
+              width: "calc(100%)",
+            }}
+          >
+            <Input.TextArea
+              rows={6}
+              style={{
+                width: "100%",
+                resize: "none",
+                borderRadius: 0,
+              }}
+            />
           </Form.Item>
 
           <Form.Item
             label="업로드 할 파일"
             name="files"
             rules={[{ required: true, message: "파일을 선택해주세요" }]}
+            style={{ marginBottom: 0 }}
           >
             <Upload.Dragger
               name="files"
               multiple={false}
-              beforeUpload={() => false}
-              accept=".zip,.jpg,.png,.gif,.bmp,.webp,.pdf,.dicom"
+              maxCount={1}
+              beforeUpload={(file) => {
+                const isZip =
+                  file.type === "application/zip" ||
+                  file.type === "application/x-zip-compressed" ||
+                  file.name.endsWith(".zip");
+                if (!isZip) {
+                  message.error("ZIP 파일만 업로드 가능합니다.");
+                }
+                return false;
+              }}
+              accept=".zip"
+              style={{ padding: "16px 0" }}
             >
               <p className="ant-upload-drag-icon">
-                <UploadOutlined />
+                <UploadOutlined
+                  style={{ fontSize: "32px", color: "#40a9ff" }}
+                />
               </p>
-              <p className="ant-upload-text">Click to Upload</p>
-              <p className="ant-upload-hint">
+              <p
+                className="ant-upload-text"
+                style={{ fontSize: "16px", margin: "8px 0" }}
+              >
+                Click to Upload
+              </p>
+              <p className="ant-upload-hint" style={{ color: "#666" }}>
                 압축(zip) 파일만 업로드 가능합니다.
-                <br />
-                압축파일 안에는 [dicom, jpg, png, gif, bmp, webp, pdf] 파일만
-                포함 가능합니다.
               </p>
             </Upload.Dragger>
-          </Form.Item>
-
-          <Form.Item>
-            <Button type="primary" htmlType="submit" style={{ float: "right" }}>
-              등록
-            </Button>
           </Form.Item>
         </Form>
       </Modal>
