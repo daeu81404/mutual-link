@@ -24,4 +24,8 @@ actor {
   public shared(msg) func updateDoctorPublicKey(email: Text, publicKey: Text) : async Result.Result<DoctorManagement.Doctor, Text> {
     doctorManager.updateDoctorPublicKey(email, publicKey)
   };
+
+  public query func getDoctorByEmail(email: Text) : async ?DoctorManagement.Doctor {
+    doctorManager.getDoctorByEmail(email)
+  };
 };

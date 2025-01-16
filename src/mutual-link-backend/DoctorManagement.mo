@@ -61,27 +61,42 @@ module {
             doctors.get(id)
         };
 
-        public func updateDoctorPublicKey(email: Text, publicKey: Text) : Result.Result<Doctor, Text> {
+        public func getDoctorByEmail(email: Text) : ?Doctor {
             let doctorsArray = Iter.toArray(doctors.vals());
-            let doctorOpt = Array.find<Doctor>(doctorsArray, func(doc: Doctor) : Bool {
+            Array.find<Doctor>(doctorsArray, func(doc: Doctor) : Bool {
                 doc.email == email
-            });
+            })
+        };
+
+        public func updateDoctorPublicKey(email: Text, publicKey: Text) : Result.Result<Doctor, Text> {
+            let doctorOpt = getDoctorByEmail(email);
             
             switch (doctorOpt) {
                 case (null) { #err("해당 이메일의 의사를 찾을 수 없습니다.") };
                 case (?doctor) {
-                    let updatedDoctor = {
-                        id = doctor.id;
-                        name = doctor.name;
-                        email = doctor.email;
-                        phone = doctor.phone;
-                        hospital = doctor.hospital;
-                        department = doctor.department;
-                        role = doctor.role;
-                        publicKey = ?publicKey;
-                    };
-                    doctors.put(doctor.id, updatedDoctor);
-                    #ok(updatedDoctor)
+                    switch (doctor.publicKey) {
+                        case (?existingKey) { 
+                            if (existingKey == publicKey) {
+                                #ok(doctor) // 이미 같은 public key가 등록되어 있으면 그대로 반환
+                            } else {
+                                #err("이미 다른 public key가 등록되어 있습니다.")
+                            }
+                        };
+                        case (null) {
+                            let updatedDoctor = {
+                                id = doctor.id;
+                                name = doctor.name;
+                                email = doctor.email;
+                                phone = doctor.phone;
+                                hospital = doctor.hospital;
+                                department = doctor.department;
+                                role = doctor.role;
+                                publicKey = ?publicKey;
+                            };
+                            doctors.put(doctor.id, updatedDoctor);
+                            #ok(updatedDoctor)
+                        };
+                    }
                 };
             }
         };

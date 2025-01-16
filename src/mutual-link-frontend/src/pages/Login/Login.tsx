@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Layout, Typography, Button, Card, Space } from "antd";
+import { Layout, Typography, Button, Card, Space, message } from "antd";
 import { GoogleOutlined, LockOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWeb3Auth } from "@/contexts/Web3AuthContext";
@@ -19,7 +19,7 @@ const CANISTER_ID =
   "bkyz2-fmaaa-aaaaa-qaaaq-cai";
 
 const Login = () => {
-  const { loginWithGoogle } = useWeb3Auth();
+  const { loginWithGoogle, logout } = useWeb3Auth();
   const { login, isLoggedIn } = useAuth();
   const navigate = useNavigate();
 
@@ -34,19 +34,9 @@ const Login = () => {
     console.log(`로그인 결과:`, result);
 
     if (result.connected && result.publicKey && result.email) {
-      const userData = {
-        hospital: "서울대병원",
-        department: "정신과",
-        name: "김창남",
-        role: "admin", // user|admin
-        email: result.email,
-      };
-
       try {
-        // 백엔드 actor 생성
         const agent = new HttpAgent();
 
-        // 로컬 개발 환경에서는 인증서 검증을 비활성화
         if (process.env.NODE_ENV !== "production") {
           await agent.fetchRootKey();
         }
@@ -56,7 +46,43 @@ const Login = () => {
           canisterId: CANISTER_ID,
         });
 
-        // public key 업데이트
+        // 먼저 사용자 존재 여부 확인
+        const doctorResult = await actor.getDoctorByEmail(result.email);
+
+        if (!doctorResult.length) {
+          message.error(
+            "등록되지 않은 의사 계정입니다. 관리자에게 문의하세요."
+          );
+          await logout();
+          return;
+        }
+
+        const doctor = doctorResult[0];
+        const userData = {
+          hospital: doctor.hospital,
+          department: doctor.department,
+          name: doctor.name,
+          role: doctor.role,
+          email: doctor.email,
+        };
+
+        // public key가 이미 등록되어 있는지 확인
+        if (doctor.publicKey.length > 0) {
+          // 이미 등록된 public key가 현재 key와 같은지 확인
+          if (doctor.publicKey[0] === result.publicKey) {
+            login(userData);
+            navigate("/home/doctor-list");
+            return;
+          } else {
+            message.error(
+              "이미 다른 기기에서 등록된 계정입니다. 관리자에게 문의하세요."
+            );
+            await logout();
+            return;
+          }
+        }
+
+        // public key가 없는 경우에만 업데이트 진행
         const updateResult = await actor.updateDoctorPublicKey(
           userData.email,
           result.publicKey
@@ -67,13 +93,19 @@ const Login = () => {
           login(userData);
           navigate("/home/doctor-list");
         } else {
-          console.error("Public key 업데이트 실패:", updateResult.err);
+          message.error(updateResult.err);
+          await logout();
         }
       } catch (error) {
         console.error("백엔드 통신 중 오류 발생:", error);
+        message.error(
+          "로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        );
+        await logout();
       }
     } else {
-      console.error("로그인 실패: 필요한 정보를 가져오지 못했습니다.");
+      message.error("로그인에 필요한 정보를 가져오지 못했습니다.");
+      await logout();
     }
   };
 
