@@ -64,6 +64,7 @@ const Login = () => {
           name: doctor.name,
           role: doctor.role,
           email: doctor.email,
+          publicKey: result.publicKey || undefined,
         };
 
         // public key가 이미 등록되어 있는지 확인

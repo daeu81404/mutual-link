@@ -1,9 +1,11 @@
 import DoctorManagement "./DoctorManagement";
+import ApprovalManagement "./ApprovalManagement";
 import Result "mo:base/Result";
 import Nat "mo:base/Nat";
 
 actor {
   private let doctorManager = DoctorManagement.DoctorManager();
+  private let approvalManager = ApprovalManagement.ApprovalManager();
 
   public shared(msg) func updateDoctor(doctor: DoctorManagement.Doctor) : async Result.Result<DoctorManagement.Doctor, Text> {
     doctorManager.updateDoctor(doctor)
@@ -27,5 +29,25 @@ actor {
 
   public query func getDoctorByEmail(email: Text) : async ?DoctorManagement.Doctor {
     doctorManager.getDoctorByEmail(email)
+  };
+
+  public shared(msg) func createApproval(approval: ApprovalManagement.Approval) : async Result.Result<ApprovalManagement.Approval, Text> {
+    approvalManager.createApproval(approval)
+  };
+
+  public shared(msg) func updateApprovalStatus(id: Nat, status: Text) : async Result.Result<ApprovalManagement.Approval, Text> {
+    approvalManager.updateApprovalStatus(id, status)
+  };
+
+  public query func getAllApprovals() : async [ApprovalManagement.Approval] {
+    approvalManager.getAllApprovals()
+  };
+
+  public query func getApprovalsByDoctor(doctorName: Text, role: Text) : async [ApprovalManagement.Approval] {
+    approvalManager.getApprovalsByDoctor(doctorName, role)
+  };
+
+  public query func getApproval(id: Nat) : async ?ApprovalManagement.Approval {
+    approvalManager.getApproval(id)
   };
 };

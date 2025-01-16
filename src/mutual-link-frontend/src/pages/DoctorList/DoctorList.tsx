@@ -140,6 +140,11 @@ const DoctorList = () => {
 
   const handleModalSubmit = async (values: any) => {
     try {
+      if (!backendActor) {
+        message.error("백엔드가 초기화되지 않았습니다.");
+        return;
+      }
+
       // 1. AES key 생성
       const aesKey = CryptoJS.lib.WordArray.random(256 / 8);
       const aesKeyString = aesKey.toString();
@@ -162,8 +167,7 @@ const DoctorList = () => {
         ).toString();
 
         // 3. 송신자의 public key로 AES key 암호화
-        // TODO: 실제 송신자의 public key 가져오기
-        const senderPublicKey = "sender_public_key";
+        const senderPublicKey = userInfo?.publicKey || "";
         const encryptedAesKeyForSender = CryptoJS.AES.encrypt(
           aesKeyString,
           senderPublicKey
@@ -183,18 +187,41 @@ const DoctorList = () => {
           return;
         }
 
-        console.log("cid", cid);
-
-        // TODO: 백엔드로 CID와 암호화된 키 전송하는 로직 구현
-        console.log("제출된 데이터:", {
-          ...values,
+        // 6. ApprovalManager에 데이터 저장
+        const approvalData = {
+          id: 0, // 백엔드에서 자동 생성
+          date: 0, // 백엔드에서 자동 생성
+          phone: values.phone,
+          patientName: values.patientName,
+          title: values.title,
+          sender: {
+            hospital: userInfo?.hospital || "",
+            department: userInfo?.department || "",
+            doctor: userInfo?.name || "",
+          },
+          receiver: {
+            hospital: selectedDoctor?.hospital || "",
+            department: selectedDoctor?.department || "",
+            doctor: selectedDoctor?.name || "",
+          },
           cid,
           encryptedAesKeyForSender,
           encryptedAesKeyForReceiver,
-        });
+          status: "승인대기중",
+        };
 
-        message.success("진료 기록이 성공적으로 전송되었습니다.");
-        handleModalCancel();
+        try {
+          const result = await backendActor.createApproval(approvalData);
+          if ("ok" in result) {
+            message.success("진료 기록이 성공적으로 전송되었습니다.");
+            handleModalCancel();
+          } else {
+            message.error("진료 기록 전송에 실패했습니다: " + result.err);
+          }
+        } catch (error) {
+          console.error("승인 요청 생성 실패:", error);
+          message.error("진료 기록 전송에 실패했습니다.");
+        }
       };
 
       reader.readAsText(file);

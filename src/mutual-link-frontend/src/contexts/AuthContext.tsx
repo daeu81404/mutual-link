@@ -15,6 +15,8 @@ interface AuthContextType {
     department: string;
     name: string;
     role?: "admin" | "user";
+    email: string;
+    publicKey?: string;
   } | null;
   login: (userData: any) => void;
   logout: () => void;
