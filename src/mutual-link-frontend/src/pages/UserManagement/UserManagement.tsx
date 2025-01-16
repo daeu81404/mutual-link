@@ -7,6 +7,7 @@ import {
   Select,
   Space,
   message,
+  Tooltip,
 } from "antd";
 import { useState, useEffect } from "react";
 import type { ColumnsType } from "antd/es/table";
@@ -22,6 +23,7 @@ interface Doctor {
   hospital: string;
   department: string;
   role: "admin" | "user";
+  publicKey: [] | [string];
 }
 
 interface User {
@@ -33,6 +35,7 @@ interface User {
   hospital: string;
   department: string;
   role: "admin" | "user";
+  publicKey?: string;
 }
 
 type GetAllDoctorsResponse =
@@ -97,6 +100,7 @@ const UserManagement = () => {
           hospital: doctor.hospital,
           department: doctor.department,
           role: doctor.role as "admin" | "user",
+          publicKey: doctor.publicKey[0] || undefined,
         }));
         setUsers(formattedUsers);
       } catch (error) {
@@ -120,6 +124,19 @@ const UserManagement = () => {
     { title: "병원", dataIndex: "hospital", key: "hospital" },
     { title: "부서", dataIndex: "department", key: "department" },
     { title: "권한", dataIndex: "role", key: "role" },
+    {
+      title: "Public Key",
+      dataIndex: "publicKey",
+      key: "publicKey",
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (publicKey: string) => (
+        <Tooltip placement="topLeft" title={publicKey}>
+          {publicKey || "-"}
+        </Tooltip>
+      ),
+    },
     {
       title: "작업",
       key: "action",
@@ -190,6 +207,7 @@ const UserManagement = () => {
         hospital: values.hospital,
         department: values.department,
         role: values.role,
+        publicKey: editingUser?.publicKey ? [editingUser.publicKey] : [],
       };
 
       const result = await backendActor.updateDoctor(doctor);
@@ -204,6 +222,7 @@ const UserManagement = () => {
           department: result.ok.department,
           role: result.ok.role,
           key: result.ok.id.toString(),
+          publicKey: result.ok.publicKey[0] || undefined,
         };
 
         setUsers((prev) => {
