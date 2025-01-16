@@ -18,7 +18,11 @@ const googleOAuthClientId =
 interface Web3AuthContextType {
   provider: IProvider | null;
   web3auth: Web3AuthNoModal | null;
-  loginWithGoogle: () => Promise<boolean | null>;
+  loginWithGoogle: () => Promise<{
+    connected: boolean | null;
+    publicKey: string | null;
+    email: string | null;
+  }>;
   logout: () => Promise<void>;
   checkConnection: () => Promise<boolean>;
 }
@@ -90,13 +94,21 @@ export const Web3AuthProvider = ({
 
     if (!web3auth) {
       console.error("web3auth not initialized");
-      return null;
+      return { connected: null, publicKey: null, email: null };
     }
 
     try {
       if (web3auth.connected) {
         console.log("web3auth already connected");
-        return true;
+        const publicKey = (await web3auth.provider?.request({
+          method: "eth_accounts",
+        })) as string[];
+        const userInfo = await web3auth.getUserInfo();
+        return {
+          connected: true,
+          publicKey: publicKey?.[0] || null,
+          email: userInfo.email || null,
+        };
       }
 
       const web3authProvider = await web3auth.connectTo(WALLET_ADAPTERS.AUTH, {
@@ -104,10 +116,19 @@ export const Web3AuthProvider = ({
       });
       setProvider(web3authProvider);
 
-      return web3auth.connected;
+      const publicKey = (await web3authProvider?.request({
+        method: "eth_accounts",
+      })) as string[];
+      const userInfo = await web3auth.getUserInfo();
+
+      return {
+        connected: web3auth.connected,
+        publicKey: publicKey?.[0] || null,
+        email: userInfo.email || null,
+      };
     } catch (error) {
       console.error("Google 로그인 실패:", error);
-      return null;
+      return { connected: null, publicKey: null, email: null };
     }
   };
 

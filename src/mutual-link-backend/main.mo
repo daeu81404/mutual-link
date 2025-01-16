@@ -20,4 +20,8 @@ actor {
   public query func getDoctor(id: Nat) : async ?DoctorManagement.Doctor {
     doctorManager.getDoctor(id)
   };
+
+  public shared(msg) func updateDoctorPublicKey(email: Text, publicKey: Text) : async Result.Result<DoctorManagement.Doctor, Text> {
+    doctorManager.updateDoctorPublicKey(email, publicKey)
+  };
 };

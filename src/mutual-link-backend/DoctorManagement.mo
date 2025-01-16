@@ -4,6 +4,7 @@ import Iter "mo:base/Iter";
 import Result "mo:base/Result";
 import Nat "mo:base/Nat";
 import Hash "mo:base/Hash";
+import Array "mo:base/Array";
 
 module {
     public type Doctor = {
@@ -14,6 +15,7 @@ module {
         hospital: Text;
         department: Text;
         role: Text;
+        publicKey: ?Text;
     };
 
     public class DoctorManager() {
@@ -37,6 +39,7 @@ module {
                 hospital = doctor.hospital;
                 department = doctor.department;
                 role = doctor.role;
+                publicKey = doctor.publicKey;
             };
 
             doctors.put(id, newDoctor);
@@ -56,6 +59,31 @@ module {
 
         public func getDoctor(id: Nat) : ?Doctor {
             doctors.get(id)
+        };
+
+        public func updateDoctorPublicKey(email: Text, publicKey: Text) : Result.Result<Doctor, Text> {
+            let doctorsArray = Iter.toArray(doctors.vals());
+            let doctorOpt = Array.find<Doctor>(doctorsArray, func(doc: Doctor) : Bool {
+                doc.email == email
+            });
+            
+            switch (doctorOpt) {
+                case (null) { #err("해당 이메일의 의사를 찾을 수 없습니다.") };
+                case (?doctor) {
+                    let updatedDoctor = {
+                        id = doctor.id;
+                        name = doctor.name;
+                        email = doctor.email;
+                        phone = doctor.phone;
+                        hospital = doctor.hospital;
+                        department = doctor.department;
+                        role = doctor.role;
+                        publicKey = ?publicKey;
+                    };
+                    doctors.put(doctor.id, updatedDoctor);
+                    #ok(updatedDoctor)
+                };
+            }
         };
     };
 };

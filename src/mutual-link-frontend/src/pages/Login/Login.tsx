@@ -4,9 +4,19 @@ import { GoogleOutlined, LockOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWeb3Auth } from "@/contexts/Web3AuthContext";
 import { useEffect } from "react";
+import { Actor, HttpAgent } from "@dfinity/agent";
+import {
+  idlFactory,
+  Result,
+  _SERVICE,
+} from "@/declarations/mutual-link-backend";
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
+
+const CANISTER_ID =
+  process.env.VITE_CANISTER_ID_MUTUAL_LINK_BACKEND ||
+  "bkyz2-fmaaa-aaaaa-qaaaq-cai";
 
 const Login = () => {
   const { loginWithGoogle } = useWeb3Auth();
@@ -20,18 +30,50 @@ const Login = () => {
   }, [isLoggedIn]);
 
   const handleGoogleLogin = async () => {
-    const isConnected = await loginWithGoogle();
-    console.log(`isConnected: ${isConnected}`);
+    const result = await loginWithGoogle();
+    console.log(`로그인 결과:`, result);
 
-    if (isConnected) {
+    if (result.connected && result.publicKey && result.email) {
       const userData = {
         hospital: "서울대병원",
         department: "정신과",
         name: "김창남",
         role: "admin", // user|admin
+        email: result.email,
       };
-      login(userData);
-      navigate("/home/doctor-list");
+
+      try {
+        // 백엔드 actor 생성
+        const agent = new HttpAgent();
+
+        // 로컬 개발 환경에서는 인증서 검증을 비활성화
+        if (process.env.NODE_ENV !== "production") {
+          await agent.fetchRootKey();
+        }
+
+        const actor = Actor.createActor<_SERVICE>(idlFactory, {
+          agent,
+          canisterId: CANISTER_ID,
+        });
+
+        // public key 업데이트
+        const updateResult = await actor.updateDoctorPublicKey(
+          userData.email,
+          result.publicKey
+        );
+        console.log("Public key 업데이트 결과:", updateResult);
+
+        if ("ok" in updateResult) {
+          login(userData);
+          navigate("/home/doctor-list");
+        } else {
+          console.error("Public key 업데이트 실패:", updateResult.err);
+        }
+      } catch (error) {
+        console.error("백엔드 통신 중 오류 발생:", error);
+      }
+    } else {
+      console.error("로그인 실패: 필요한 정보를 가져오지 못했습니다.");
     }
   };
 
