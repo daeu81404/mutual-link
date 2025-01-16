@@ -4,6 +4,8 @@ import type { ColumnsType } from "antd/es/table";
 import { Actor, HttpAgent } from "@dfinity/agent";
 import { idlFactory } from "../../../../declarations/mutual-link-backend/mutual-link-backend.did.js";
 import { UploadOutlined } from "@ant-design/icons";
+import CryptoJS from "crypto-js";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface BackendDoctor {
   id: bigint;
@@ -13,6 +15,7 @@ interface BackendDoctor {
   hospital: string;
   department: string;
   role: string;
+  publicKey: [] | [string];
 }
 
 interface Doctor {
@@ -22,9 +25,42 @@ interface Doctor {
   phone: string;
   hospital: string;
   department: string;
+  publicKey?: string;
 }
 
+const uploadToIPFS = async (
+  encryptedContent: string
+): Promise<string | null> => {
+  try {
+    // 암호화된 내용을 Blob으로 변환
+    const blob = new Blob([encryptedContent], { type: "text/plain" });
+    const file = new File([blob], "encrypted.txt", { type: "text/plain" });
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("https://ipfs.infura.io:5001/api/v0/add", {
+      method: "POST",
+      body: formData,
+      headers: {
+        Authorization:
+          "Basic " +
+          btoa(
+            "52f7d11b90ec45f1ac9912d0fb864695:248a2ce514834460a25058bf8068e740"
+          ),
+      },
+    });
+
+    const data = await response.json();
+    return data?.Hash ?? null;
+  } catch (error) {
+    console.error("IPFS 업로드 실패:", error);
+    return null;
+  }
+};
+
 const DoctorList = () => {
+  const { userInfo } = useAuth();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(false);
   const [backendActor, setBackendActor] = useState<any>(null);
@@ -76,6 +112,7 @@ const DoctorList = () => {
           phone: doctor.phone,
           hospital: doctor.hospital,
           department: doctor.department,
+          publicKey: doctor.publicKey[0] || undefined,
         }));
         setDoctors(formattedDoctors);
       } catch (error) {
@@ -103,10 +140,64 @@ const DoctorList = () => {
 
   const handleModalSubmit = async (values: any) => {
     try {
-      // TODO: 실제 업로드 로직 구현
-      console.log("제출된 데이터:", values);
-      message.success("진료 기록이 성공적으로 전송되었습니다.");
-      handleModalCancel();
+      // 1. AES key 생성
+      const aesKey = CryptoJS.lib.WordArray.random(256 / 8);
+      const aesKeyString = aesKey.toString();
+
+      // 2. 파일 암호화
+      const file = values.files?.fileList[0]?.originFileObj;
+      if (!file) {
+        message.error("파일을 선택해주세요.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const fileContent = e.target?.result as string;
+
+        // 파일 내용 암호화
+        const encryptedFile = CryptoJS.AES.encrypt(
+          fileContent,
+          aesKeyString
+        ).toString();
+
+        // 3. 송신자의 public key로 AES key 암호화
+        // TODO: 실제 송신자의 public key 가져오기
+        const senderPublicKey = "sender_public_key";
+        const encryptedAesKeyForSender = CryptoJS.AES.encrypt(
+          aesKeyString,
+          senderPublicKey
+        ).toString();
+
+        // 4. 수신자의 public key로 AES key 암호화
+        const receiverPublicKey = selectedDoctor?.publicKey || "";
+        const encryptedAesKeyForReceiver = CryptoJS.AES.encrypt(
+          aesKeyString,
+          receiverPublicKey
+        ).toString();
+
+        // 5. 암호화된 파일을 IPFS에 업로드
+        const cid = await uploadToIPFS(encryptedFile);
+        if (!cid) {
+          message.error("IPFS 업로드에 실패했습니다.");
+          return;
+        }
+
+        console.log("cid", cid);
+
+        // TODO: 백엔드로 CID와 암호화된 키 전송하는 로직 구현
+        console.log("제출된 데이터:", {
+          ...values,
+          cid,
+          encryptedAesKeyForSender,
+          encryptedAesKeyForReceiver,
+        });
+
+        message.success("진료 기록이 성공적으로 전송되었습니다.");
+        handleModalCancel();
+      };
+
+      reader.readAsText(file);
     } catch (error) {
       console.error("업로드 실패:", error);
       message.error("진료 기록 전송에 실패했습니다.");
@@ -123,11 +214,21 @@ const DoctorList = () => {
     {
       title: "환자 진료 기록 전송",
       key: "action",
-      render: (_, record) => (
-        <Button type="primary" onClick={() => handleUploadClick(record)}>
-          환자 진료 기록 전송
-        </Button>
-      ),
+      render: (_, record) => {
+        // 현재 로그인한 사용자와 동일한 의사인 경우
+        if (record.name === userInfo?.name) {
+          return <span style={{ color: "#666" }}>본인</span>;
+        }
+        // public key가 없는 경우
+        if (!record.publicKey) {
+          return <span style={{ color: "#ff4d4f" }}>최초 로그인 대기</span>;
+        }
+        return (
+          <Button type="primary" onClick={() => handleUploadClick(record)}>
+            환자 진료 기록 전송
+          </Button>
+        );
+      },
     },
   ];
 
