@@ -265,6 +265,9 @@ const DoctorList = () => {
               </p>
               <p className="ant-upload-hint" style={{ color: "#666" }}>
                 압축(zip) 파일만 업로드 가능합니다.
+                <br />
+                압축파일 안에는 [dicom, jpg, png, gif, bmp, webp, pdf] 파일만
+                포함 가능합니다.
               </p>
             </Upload.Dragger>
           </Form.Item>
