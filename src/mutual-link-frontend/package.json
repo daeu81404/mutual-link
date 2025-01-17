@@ -11,20 +11,32 @@
     "format": "prettier --write \"src/**/*.{json,js,jsx,ts,tsx,css,scss}\""
   },
   "dependencies": {
+    "@ant-design/icons": "^5.5.2",
     "@dfinity/agent": "^2.2.0",
     "@dfinity/candid": "^2.1.3",
     "@dfinity/principal": "^2.2.0",
     "@toruslabs/eccrypto": "^6.0.0",
+    "@types/hammerjs": "^2.0.46",
     "@web3auth/auth-adapter": "^9.5.2",
     "@web3auth/base": "^9.5.2",
     "@web3auth/default-evm-adapter": "^9.5.2",
     "@web3auth/ethereum-provider": "^9.5.2",
     "@web3auth/modal": "^9.5.2",
     "@web3auth/no-modal": "^9.5.2",
+    "core-js": "^3.40.0",
+    "cornerstone-core": "^2.6.1",
+    "cornerstone-tools": "^6.0.10",
+    "cornerstone-wado-image-loader": "^4.13.2",
+    "cornerstone-web-image-loader": "^2.1.1",
     "crypto-js": "^4.2.0",
+    "dicom-parser": "^1.8.21",
     "ethers": "^6.13.5",
+    "hammerjs": "^2.0.8",
+    "jszip": "^3.10.1",
+    "pdfjs-dist": "3.11.174",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-pdf": "7.6.0"
   },
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",

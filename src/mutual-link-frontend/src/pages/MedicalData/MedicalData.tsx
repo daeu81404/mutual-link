@@ -1,5 +1,5 @@
 import { Table, Select, Input, Button, Space, message } from "antd";
-import { DownloadOutlined, CopyOutlined } from "@ant-design/icons";
+import { DownloadOutlined, CopyOutlined, EyeOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useState, useEffect } from "react";
 import { Actor, HttpAgent } from "@dfinity/agent";
@@ -7,6 +7,8 @@ import { idlFactory } from "../../../../declarations/mutual-link-backend/mutual-
 import { useAuth } from "@/contexts/AuthContext";
 import CryptoJS from "crypto-js";
 import * as eccrypto from "@toruslabs/eccrypto";
+import FileViewerModal from "@/components/FileViewerModal";
+import JSZip from "jszip";
 
 const { Search } = Input;
 
@@ -193,6 +195,16 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   const [searchType, setSearchType] = useState<
     "sender" | "receiver" | "patient"
   >("sender");
+  const [viewerModalVisible, setViewerModalVisible] = useState(false);
+  const [viewerFiles, setViewerFiles] = useState<{
+    dicom: ArrayBuffer[];
+    images: ArrayBuffer[];
+    pdf: ArrayBuffer[];
+  }>({
+    dicom: [],
+    images: [],
+    pdf: [],
+  });
 
   useEffect(() => {
     const initActor = async () => {
@@ -260,61 +272,133 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     fetchApprovals();
   }, [userInfo?.name, type]);
 
-  const handleDownload = async (record: any) => {
+  const handleFileView = async (record: Approval) => {
     try {
       if (!userInfo?.privateKey) {
         message.error("개인키가 없습니다.");
         return;
       }
 
-      setLoading(true);
-
-      console.log("다운로드 시작", {
-        userInfo: {
-          name: userInfo.name,
-          privateKey: userInfo.privateKey.substring(0, 10) + "...",
-        },
-        record: {
-          sender: record.sender,
-          receiver: record.receiver,
-          encryptedAesKeyForSender: record.encryptedAesKeyForSender,
-          encryptedAesKeyForReceiver: record.encryptedAesKeyForReceiver,
-        },
-      });
-
       // 1. IPFS에서 암호화된 파일 다운로드
       const encryptedBlob = await downloadFromIPFS(record.cid);
+      const encryptedArrayBuffer = await encryptedBlob.arrayBuffer();
+      const encryptedData = new Uint8Array(encryptedArrayBuffer);
 
       // 2. AES 키 복호화 (송신자 또는 수신자의 암호화된 AES 키 사용)
       const isSender = userInfo.name === record.sender.doctor;
-      console.log("사용자 역할:", isSender ? "송신자" : "수신자");
-
       const encryptedAesKey = isSender
         ? record.encryptedAesKeyForSender
         : record.encryptedAesKeyForReceiver;
 
-      console.log("선택된 암호화된 AES 키:", {
-        encryptedAesKey,
-        isSender,
-        userInfo: {
-          name: userInfo.name,
-          doctorName: isSender ? record.sender.doctor : record.receiver.doctor,
-        },
+      const aesKey = await decryptAesKey(encryptedAesKey, userInfo.privateKey);
+
+      // 3. 파일 복호화
+      const decryptedChunks: Uint8Array[] = [];
+      let offset = 0;
+
+      while (offset < encryptedData.length) {
+        // 청크 크기 읽기 (4바이트)
+        const chunkSize =
+          (encryptedData[offset] << 24) |
+          (encryptedData[offset + 1] << 16) |
+          (encryptedData[offset + 2] << 8) |
+          encryptedData[offset + 3];
+        offset += 4;
+
+        // 청크 데이터 읽기
+        const encryptedChunk = encryptedData.slice(offset, offset + chunkSize);
+        offset += chunkSize;
+
+        // 바이너리 데이터를 Base64로 변환
+        let binary = "";
+        for (let i = 0; i < encryptedChunk.length; i++) {
+          binary += String.fromCharCode(encryptedChunk[i]);
+        }
+        const encryptedBase64 = btoa(binary);
+
+        // 복호화
+        const decryptedWordArray = CryptoJS.AES.decrypt(
+          encryptedBase64,
+          aesKey
+        );
+
+        // WordArray를 Uint8Array로 변환
+        const words = decryptedWordArray.words;
+        const sigBytes = decryptedWordArray.sigBytes;
+        const u8 = new Uint8Array(sigBytes);
+        let b = 0;
+        for (let i = 0; i < sigBytes; i++) {
+          const byte = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+          u8[b++] = byte;
+        }
+
+        decryptedChunks.push(u8);
+      }
+
+      // 모든 청크를 하나의 Uint8Array로 합치기
+      const totalLength = decryptedChunks.reduce(
+        (acc, chunk) => acc + chunk.length,
+        0
+      );
+      const decryptedArrayBuffer = new Uint8Array(totalLength);
+      let writeOffset = 0;
+      for (const chunk of decryptedChunks) {
+        decryptedArrayBuffer.set(chunk, writeOffset);
+        writeOffset += chunk.length;
+      }
+
+      // 4. ZIP 파일 처리
+      const zip = await JSZip.loadAsync(decryptedArrayBuffer);
+      const files = {
+        dicom: [] as ArrayBuffer[],
+        images: [] as ArrayBuffer[],
+        pdf: [] as ArrayBuffer[],
+      };
+
+      // 각 파일 처리
+      console.log("ZIP 파일 내용:", Object.keys(zip.files));
+      for (const [filename, zipEntry] of Object.entries(zip.files)) {
+        // Mac OS 메타데이터 파일 및 디렉토리 제외
+        if (
+          zipEntry.dir ||
+          filename.startsWith("__MACOSX/") ||
+          filename.includes("/._")
+        ) {
+          console.log("건너뜀:", filename);
+          continue;
+        }
+
+        console.log("파일 처리 중:", filename);
+        const fileData = await zipEntry.async("arraybuffer");
+        const extension = filename.split(".").pop()?.toLowerCase();
+        console.log("파일 확장자:", extension);
+
+        if (extension === "dcm") {
+          console.log("DICOM 파일 추가:", filename);
+          files.dicom.push(fileData);
+        } else if (["jpg", "jpeg", "png", "gif"].includes(extension || "")) {
+          console.log("이미지 파일 추가:", filename);
+          const blob = new Blob([fileData]);
+          files.images.push(fileData);
+        } else if (extension === "pdf") {
+          console.log("PDF 파일 추가:", filename);
+          files.pdf.push(fileData);
+        } else {
+          console.log("지원하지 않는 파일 형식:", filename);
+        }
+      }
+
+      console.log("최종 파일 개수:", {
+        dicom: files.dicom.length,
+        images: files.images.length,
+        pdf: files.pdf.length,
       });
 
-      const aesKey = await decryptAesKey(encryptedAesKey, userInfo.privateKey);
-      console.log("복호화된 AES 키:", aesKey);
-
-      // 3. 파일 복호화 및 다운로드
-      const fileName = `${record.patientName}_${record.title}.zip`;
-      await decryptAndDownloadFile(encryptedBlob, aesKey, fileName);
-
-      message.success("파일 다운로드가 완료되었습니다.");
+      setViewerFiles(files);
+      setViewerModalVisible(true);
     } catch (error) {
-      console.error("다운로드 실패:", error);
-      message.error("파일 다운로드에 실패했습니다.");
-    } finally {
-      setLoading(false);
+      console.error("파일 처리 실패:", error);
+      message.error("파일을 처리하는데 실패했습니다.");
     }
   };
 
@@ -393,59 +477,66 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       ),
     },
     {
-      title: "전송 기록 / 이관",
+      title: "진료 데이터 / 전송 기록",
       key: "action",
-      width: 150,
-      render: () => (
-        <Space>
-          <Button type="primary">전송 기록</Button>
+      render: (_, record) => (
+        <Space size="middle">
+          <Button
+            type="primary"
+            icon={<EyeOutlined />}
+            onClick={() => handleFileView(record)}
+          >
+            보기
+          </Button>
+          <Button>전송 기록</Button>
           {type === "receive" && <Button>이관</Button>}
         </Space>
-      ),
-    },
-    {
-      title: "다운로드",
-      key: "download",
-      width: 70,
-      render: (_, record) => (
-        <Button onClick={() => handleDownload(record)} loading={loading}>
-          다운로드
-        </Button>
       ),
     },
   ];
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: "flex", gap: 8 }}>
-        <Select
-          value={searchType}
-          style={{ width: 120 }}
-          onChange={(value) => setSearchType(value)}
-          options={[
-            { value: "sender", label: "송신자" },
-            { value: "receiver", label: "수신자" },
-            { value: "patient", label: "환자명" },
-          ]}
-        />
-        <Search
-          placeholder="검색어를 입력하세요"
-          style={{ width: 300 }}
-          onSearch={(value) => console.log(value)}
+    <>
+      <div style={{ padding: "24px" }}>
+        <div style={{ marginBottom: 16, display: "flex", gap: 8 }}>
+          <Select
+            value={searchType}
+            style={{ width: 120 }}
+            onChange={(value) => setSearchType(value)}
+            options={[
+              { value: "sender", label: "송신자" },
+              { value: "receiver", label: "수신자" },
+              { value: "patient", label: "환자명" },
+            ]}
+          />
+          <Search
+            placeholder="검색어를 입력하세요"
+            style={{ width: 300 }}
+            onSearch={(value) => console.log(value)}
+          />
+        </div>
+        <Table
+          columns={columns}
+          dataSource={approvals}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            total: approvals.length,
+            pageSize: 10,
+            current: 1,
+          }}
         />
       </div>
-      <Table
-        columns={columns}
-        dataSource={approvals}
-        rowKey="id"
-        loading={loading}
-        pagination={{
-          total: approvals.length,
-          pageSize: 10,
-          current: 1,
+      <FileViewerModal
+        visible={viewerModalVisible}
+        onClose={() => {
+          setViewerModalVisible(false);
+          // 메모리 정리
+          setViewerFiles({ dicom: [], images: [], pdf: [] });
         }}
+        files={viewerFiles}
       />
-    </div>
+    </>
   );
 };
 
