@@ -61,26 +61,16 @@ interface Approval {
 // IPFS로부터 파일 다운로드
 const downloadFromIPFS = async (cid: string): Promise<Blob> => {
   try {
-    const response = await fetch(
-      `https://ipfs.infura.io:5001/api/v0/get?arg=${cid}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization:
-            "Basic " +
-            btoa(
-              "52f7d11b90ec45f1ac9912d0fb864695:248a2ce514834460a25058bf8068e740"
-            ),
-        },
-      }
-    );
+    const response = await fetch(`https://ipfs.io/ipfs/${cid}`, {
+      method: "GET",
+    });
 
     if (!response.ok) {
       throw new Error(`Network response was not ok: ${response.statusText}`);
     }
 
-    const tarBlob = await response.blob();
-    return tarBlob.slice(512); // Skip tar header (512 bytes) to get raw data
+    const blob = await response.blob();
+    return blob;
   } catch (error) {
     console.error("IPFS 다운로드 실패:", error);
     throw error;
