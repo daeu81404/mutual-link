@@ -29,16 +29,86 @@ interface Doctor {
   publicKey?: string;
 }
 
-const uploadToIPFS = async (
-  encryptedContent: string
+// 청크 크기를 500KB로 수정 (메모리 사용량 최적화)
+const CHUNK_SIZE = 500 * 1024;
+
+// 파일을 청크 단위로 암호화하여 업로드하는 함수
+const encryptAndUploadFile = async (
+  file: File,
+  aesKey: string,
+  onProgress?: (progress: number) => void
 ): Promise<string | null> => {
   try {
-    // 암호화된 내용을 Blob으로 변환
-    const blob = new Blob([encryptedContent], { type: "text/plain" });
-    const file = new File([blob], "encrypted.txt", { type: "text/plain" });
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    let processedSize = 0;
+    const encryptedChunks: Uint8Array[] = [];
+
+    // 파일을 청크 단위로 읽고 암호화
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const chunk = file.slice(start, end);
+      const arrayBuffer = await chunk.arrayBuffer();
+
+      // 청크 암호화
+      const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
+      const encryptedWordArray = CryptoJS.AES.encrypt(wordArray, aesKey);
+
+      // 암호화된 데이터를 Uint8Array로 변환
+      const encryptedBase64 = encryptedWordArray.toString();
+      const binaryString = atob(encryptedBase64);
+      const encryptedBytes = new Uint8Array(binaryString.length);
+      for (let j = 0; j < binaryString.length; j++) {
+        encryptedBytes[j] = binaryString.charCodeAt(j);
+      }
+
+      encryptedChunks.push(encryptedBytes);
+      processedSize += arrayBuffer.byteLength;
+
+      // 진행률 업데이트 (80%까지는 암호화 작업)
+      if (onProgress) {
+        onProgress((processedSize / file.size) * 80);
+      }
+
+      // 메모리 해제를 위해 잠시 대기
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    if (onProgress) {
+      onProgress(90); // 암호화 완료
+    }
+
+    // 모든 청크를 하나의 파일로 합치기
+    const totalSize = encryptedChunks.reduce(
+      (acc, chunk) => acc + chunk.length,
+      0
+    );
+    const combinedArray = new Uint8Array(totalSize + totalChunks * 4); // 각 청크의 크기 정보를 저장하기 위해 4바이트씩 추가
+
+    let offset = 0;
+    for (const chunk of encryptedChunks) {
+      // 청크 크기 저장 (4바이트)
+      const chunkSize = chunk.length;
+      combinedArray[offset++] = (chunkSize >> 24) & 0xff;
+      combinedArray[offset++] = (chunkSize >> 16) & 0xff;
+      combinedArray[offset++] = (chunkSize >> 8) & 0xff;
+      combinedArray[offset++] = chunkSize & 0xff;
+
+      // 청크 데이터 저장
+      combinedArray.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    // IPFS에 업로드
+    const blob = new Blob([combinedArray], {
+      type: "application/octet-stream",
+    });
+    const encryptedFile = new File([blob], "encrypted_file.bin", {
+      type: "application/octet-stream",
+    });
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", encryptedFile);
 
     const response = await fetch("https://ipfs.infura.io:5001/api/v0/add", {
       method: "POST",
@@ -52,10 +122,14 @@ const uploadToIPFS = async (
       },
     });
 
+    if (onProgress) {
+      onProgress(100); // 업로드 완료
+    }
+
     const data = await response.json();
     return data?.Hash ?? null;
   } catch (error) {
-    console.error("IPFS 업로드 실패:", error);
+    console.error("파일 암호화 및 업로드 실패:", error);
     return null;
   }
 };
@@ -76,6 +150,39 @@ const generateRandomKey = async (): Promise<string> => {
   return Array.from(array)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+};
+
+// ZIP 파일 검증 함수
+const validateZipFile = async (file: File): Promise<boolean> => {
+  // ZIP 파일 시그니처 검사
+  const fileHeader = await file.slice(0, 4).arrayBuffer();
+  const header = new Uint8Array(fileHeader);
+
+  // ZIP 파일 시그니처: 50 4B 03 04
+  const isValidZip =
+    header[0] === 0x50 &&
+    header[1] === 0x4b &&
+    header[2] === 0x03 &&
+    header[3] === 0x04;
+
+  return isValidZip;
+};
+
+// 파일을 청크로 나누기 전에 압축 해제 테스트
+const testZipExtraction = async (file: File): Promise<boolean> => {
+  try {
+    // ZIP 파일 검증
+    const isValid = await validateZipFile(file);
+    if (!isValid) {
+      message.error("올바른 ZIP 파일 형식이 아닙니다.");
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("ZIP 파일 검증 실패:", error);
+    message.error("ZIP 파일 검증에 실패했습니다.");
+    return false;
+  }
 };
 
 const DoctorList = () => {
@@ -173,100 +280,107 @@ const DoctorList = () => {
       const aesKey = await generateRandomKey();
       console.log("생성된 AES 키:", aesKey);
 
-      // 2. 파일 암호화
-      const file = values.files?.fileList[0]?.originFileObj;
-      if (!file) {
+      // 2. 파일 처리
+      const uploadedFile = values.files?.fileList[0]?.originFileObj;
+      if (!uploadedFile) {
         message.error("파일을 선택해주세요.");
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        // 파일을 ArrayBuffer로 읽기
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
+      // ZIP 파일 검증
+      const isValidZip = await testZipExtraction(uploadedFile);
+      if (!isValidZip) {
+        return;
+      }
 
-        // 파일 내용을 AES로 암호화
-        const encryptedWordArray = CryptoJS.AES.encrypt(wordArray, aesKey);
-        const encryptedBase64 = encryptedWordArray.toString();
+      // 파일 암호화 및 업로드 진행률 표시를 위한 메시지
+      const key = "uploadProgress";
+      message.loading({ content: "파일 처리 중...", key });
 
-        // 3. 송신자의 공개키로 AES 키 암호화
-        if (!userInfo.publicKey) {
-          message.error("송신자의 공개키가 없습니다.");
-          return;
+      // 파일 암호화 및 업로드
+      const cid = await encryptAndUploadFile(
+        uploadedFile,
+        aesKey,
+        (progress) => {
+          message.loading({
+            content: `파일 처리 중... ${Math.round(progress)}%`,
+            key,
+          });
         }
-        console.log("송신자 공개키:", userInfo.publicKey);
-        const encryptedAesKeyForSender = await encryptAesKey(
-          aesKey,
-          userInfo.publicKey
-        );
-        console.log("송신자용 암호화된 AES 키:", encryptedAesKeyForSender);
+      );
 
-        // 4. 수신자의 공개키로 AES 키 암호화
-        if (!selectedDoctor.publicKey) {
-          message.error("수신자의 공개키가 없습니다.");
-          return;
-        }
-        console.log("수신자 공개키:", selectedDoctor.publicKey);
-        const encryptedAesKeyForReceiver = await encryptAesKey(
-          aesKey,
-          selectedDoctor.publicKey
-        );
-        console.log("수신자용 암호화된 AES 키:", encryptedAesKeyForReceiver);
+      if (!cid) {
+        message.error({ content: "파일 업로드 실패", key });
+        return;
+      }
 
-        // 5. 암호화된 파일을 IPFS에 업로드
-        const cid = await uploadToIPFS(encryptedBase64);
-        if (!cid) {
-          message.error("IPFS 업로드에 실패했습니다.");
-          return;
-        }
+      message.success({ content: "파일 업로드 완료", key });
 
-        // 6. ApprovalManager에 데이터 저장
-        const approvalData = {
-          id: 0,
-          date: 0,
-          phone: values.phone,
-          patientName: values.patientName,
-          title: values.title,
-          sender: {
-            hospital: userInfo?.hospital || "",
-            department: userInfo?.department || "",
-            doctor: userInfo?.name || "",
-          },
-          receiver: {
-            hospital: selectedDoctor?.hospital || "",
-            department: selectedDoctor?.department || "",
-            doctor: selectedDoctor?.name || "",
-          },
-          cid,
-          encryptedAesKeyForSender,
-          encryptedAesKeyForReceiver,
-          status: "승인대기중",
-        };
+      // 3. 송신자의 공개키로 AES 키 암호화
+      if (!userInfo.publicKey) {
+        message.error("송신자의 공개키가 없습니다.");
+        return;
+      }
+      console.log("송신자 공개키:", userInfo.publicKey);
+      const encryptedAesKeyForSender = await encryptAesKey(
+        aesKey,
+        userInfo.publicKey
+      );
 
-        console.log("저장할 데이터:", {
-          ...approvalData,
-          encryptedAesKeyForSender:
-            encryptedAesKeyForSender.substring(0, 50) + "...",
-          encryptedAesKeyForReceiver:
-            encryptedAesKeyForReceiver.substring(0, 50) + "...",
-        });
+      // 4. 수신자의 공개키로 AES 키 암호화
+      if (!selectedDoctor.publicKey) {
+        message.error("수신자의 공개키가 없습니다.");
+        return;
+      }
+      console.log("수신자 공개키:", selectedDoctor.publicKey);
+      const encryptedAesKeyForReceiver = await encryptAesKey(
+        aesKey,
+        selectedDoctor.publicKey
+      );
 
-        try {
-          const result = await backendActor.createApproval(approvalData);
-          if ("ok" in result) {
-            message.success("진료 기록이 성공적으로 전송되었습니다.");
-            handleModalCancel();
-          } else {
-            message.error("진료 기록 전송에 실패했습니다: " + result.err);
-          }
-        } catch (error) {
-          console.error("승인 요청 생성 실패:", error);
-          message.error("진료 기록 전송에 실패했습니다.");
-        }
+      // 5. ApprovalManager에 데이터 저장
+      const approvalData = {
+        id: 0,
+        date: 0,
+        phone: values.phone,
+        patientName: values.patientName,
+        title: values.title,
+        sender: {
+          hospital: userInfo?.hospital || "",
+          department: userInfo?.department || "",
+          doctor: userInfo?.name || "",
+        },
+        receiver: {
+          hospital: selectedDoctor?.hospital || "",
+          department: selectedDoctor?.department || "",
+          doctor: selectedDoctor?.name || "",
+        },
+        cid,
+        encryptedAesKeyForSender,
+        encryptedAesKeyForReceiver,
+        status: "승인대기중",
       };
 
-      reader.readAsArrayBuffer(file);
+      console.log("저장할 데이터:", {
+        ...approvalData,
+        encryptedAesKeyForSender:
+          encryptedAesKeyForSender.substring(0, 50) + "...",
+        encryptedAesKeyForReceiver:
+          encryptedAesKeyForReceiver.substring(0, 50) + "...",
+      });
+
+      try {
+        const result = await backendActor.createApproval(approvalData);
+        if ("ok" in result) {
+          message.success("진료 기록이 성공적으로 전송되었습니다.");
+          handleModalCancel();
+        } else {
+          message.error("진료 기록 전송에 실패했습니다: " + result.err);
+        }
+      } catch (error) {
+        console.error("승인 요청 생성 실패:", error);
+        message.error("진료 기록 전송에 실패했습니다.");
+      }
     } catch (error) {
       console.error("업로드 실패:", error);
       message.error("진료 기록 전송에 실패했습니다.");
@@ -443,14 +557,23 @@ const DoctorList = () => {
               name="files"
               multiple={false}
               maxCount={1}
-              beforeUpload={(file) => {
+              beforeUpload={async (file) => {
                 const isZip =
                   file.type === "application/zip" ||
                   file.type === "application/x-zip-compressed" ||
                   file.name.endsWith(".zip");
                 if (!isZip) {
                   message.error("ZIP 파일만 업로드 가능합니다.");
+                  return false;
                 }
+
+                // ZIP 파일 검증
+                const isValidZip = await validateZipFile(file);
+                if (!isValidZip) {
+                  message.error("올바른 ZIP 파일 형식이 아닙니다.");
+                  return false;
+                }
+
                 return false;
               }}
               accept=".zip"

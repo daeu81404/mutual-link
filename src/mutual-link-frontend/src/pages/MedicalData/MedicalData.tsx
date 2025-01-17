@@ -121,26 +121,64 @@ const decryptAndDownloadFile = async (
   fileName: string
 ) => {
   try {
-    // Base64로 인코딩된 암호화 데이터를 읽기
-    const encryptedBase64 = await encryptedBlob.text();
+    // 암호화된 데이터를 ArrayBuffer로 읽기
+    const arrayBuffer = await encryptedBlob.arrayBuffer();
+    const encryptedData = new Uint8Array(arrayBuffer);
 
-    // CryptoJS로 복호화
-    const decryptedWordArray = CryptoJS.AES.decrypt(encryptedBase64, aesKey);
+    const decryptedChunks: Uint8Array[] = [];
+    let offset = 0;
 
-    // WordArray를 Uint8Array로 변환
-    const words = decryptedWordArray.words;
-    const sigBytes = decryptedWordArray.sigBytes;
-    const u8 = new Uint8Array(sigBytes);
-    let b = 0;
-    for (let i = 0; i < sigBytes; i++) {
-      const byte = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
-      u8[b++] = byte;
+    // 각 청크를 읽고 복호화
+    while (offset < encryptedData.length) {
+      // 청크 크기 읽기 (4바이트)
+      const chunkSize =
+        (encryptedData[offset] << 24) |
+        (encryptedData[offset + 1] << 16) |
+        (encryptedData[offset + 2] << 8) |
+        encryptedData[offset + 3];
+      offset += 4;
+
+      // 청크 데이터 읽기
+      const encryptedChunk = encryptedData.slice(offset, offset + chunkSize);
+      offset += chunkSize;
+
+      // 바이너리 데이터를 Base64로 변환
+      let binary = "";
+      for (let i = 0; i < encryptedChunk.length; i++) {
+        binary += String.fromCharCode(encryptedChunk[i]);
+      }
+      const encryptedBase64 = btoa(binary);
+
+      // 복호화
+      const decryptedWordArray = CryptoJS.AES.decrypt(encryptedBase64, aesKey);
+
+      // WordArray를 Uint8Array로 변환
+      const words = decryptedWordArray.words;
+      const sigBytes = decryptedWordArray.sigBytes;
+      const u8 = new Uint8Array(sigBytes);
+      let b = 0;
+      for (let i = 0; i < sigBytes; i++) {
+        const byte = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+        u8[b++] = byte;
+      }
+
+      decryptedChunks.push(u8);
     }
 
-    // Blob 생성
-    const blob = new Blob([u8], { type: "application/zip" });
+    // 모든 청크를 하나의 Uint8Array로 합치기
+    const totalLength = decryptedChunks.reduce(
+      (acc, chunk) => acc + chunk.length,
+      0
+    );
+    const combinedArray = new Uint8Array(totalLength);
+    let writeOffset = 0;
+    for (const chunk of decryptedChunks) {
+      combinedArray.set(chunk, writeOffset);
+      writeOffset += chunk.length;
+    }
 
-    // 다운로드 링크 생성
+    // Blob 생성 및 다운로드
+    const blob = new Blob([combinedArray], { type: "application/zip" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
