@@ -35,9 +35,14 @@ const Login = () => {
 
     if (result.connected && result.publicKey && result.email) {
       try {
-        const agent = new HttpAgent();
+        const currentHost = window.location.hostname;
+        const host = currentHost.includes("localhost")
+          ? `http://${currentHost}:4943`
+          : "http://127.0.0.1:4943";
 
-        if (process.env.NODE_ENV !== "production") {
+        const agent = new HttpAgent({ host });
+
+        if (host.includes("localhost") || host.includes("127.0.0.1")) {
           await agent.fetchRootKey();
         }
 
