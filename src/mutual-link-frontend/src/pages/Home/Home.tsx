@@ -92,7 +92,25 @@ export default function Home() {
               transition: "all 0.2s",
             }}
           />
-          <Title level={3} style={{ margin: 0, color: token.colorPrimary }}>
+          <Title
+            level={3}
+            style={{
+              margin: 0,
+              color: token.colorPrimary,
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <img
+              src="/favicon.ico"
+              alt="Mutual Link Logo"
+              style={{
+                width: "28px",
+                height: "28px",
+                marginRight: "8px",
+                display: "block",
+              }}
+            />
             Mutual Link
           </Title>
         </div>
