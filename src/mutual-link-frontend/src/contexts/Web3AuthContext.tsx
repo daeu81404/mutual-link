@@ -9,6 +9,9 @@ import {
 import { Web3AuthNoModal } from "@web3auth/no-modal";
 import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 import { AuthAdapter } from "@web3auth/auth-adapter";
+import { ec as EC } from "elliptic";
+
+const ec = new EC("secp256k1");
 
 const web3AuthClientId =
   "BAiwYWZI6UbKwvnkFOnDmW27ptYa_0lCAxK3WzeSQePLw7d_EPQHRFEwCi3RC0EdC0sw1qJz809n6o95fmBCook";
@@ -100,13 +103,18 @@ export const Web3AuthProvider = ({
     try {
       if (web3auth.connected) {
         console.log("web3auth already connected");
-        const publicKey = (await web3auth.provider?.request({
-          method: "eth_accounts",
-        })) as string[];
+        const privateKey = (await web3auth.provider?.request({
+          method: "eth_private_key",
+        })) as string;
+
+        // 개인키로부터 공개키 생성
+        const keyPair = ec.keyFromPrivate(privateKey.replace("0x", ""), "hex");
+        const publicKey = keyPair.getPublic("hex");
+
         const userInfo = await web3auth.getUserInfo();
         return {
           connected: true,
-          publicKey: publicKey?.[0] || null,
+          publicKey: publicKey,
           email: userInfo.email || null,
         };
       }
@@ -116,14 +124,19 @@ export const Web3AuthProvider = ({
       });
       setProvider(web3authProvider);
 
-      const publicKey = (await web3authProvider?.request({
-        method: "eth_accounts",
-      })) as string[];
+      const privateKey = (await web3authProvider?.request({
+        method: "eth_private_key",
+      })) as string;
+
+      // 개인키로부터 공개키 생성
+      const keyPair = ec.keyFromPrivate(privateKey.replace("0x", ""), "hex");
+      const publicKey = keyPair.getPublic("hex");
+
       const userInfo = await web3auth.getUserInfo();
 
       return {
         connected: web3auth.connected,
-        publicKey: publicKey?.[0] || null,
+        publicKey: publicKey,
         email: userInfo.email || null,
       };
     } catch (error) {
