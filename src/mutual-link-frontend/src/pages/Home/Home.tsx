@@ -15,7 +15,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { useState } from "react";
-import { useNavigate, Outlet } from "react-router-dom";
+import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { regularMenuItems, adminMenuItems } from "@/constants/menuItems";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWeb3Auth } from "@/contexts/Web3AuthContext";
@@ -27,6 +27,7 @@ const { useToken } = theme;
 export default function Home() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout: authLogout, userInfo } = useAuth();
   const { logout: web3AuthLogout } = useWeb3Auth();
   const { token } = useToken();
@@ -35,6 +36,17 @@ export default function Home() {
     ...regularMenuItems,
     ...(userInfo?.role === "admin" ? adminMenuItems : []),
   ];
+
+  const getSelectedKey = () => {
+    const path = location.pathname.split("/").pop() || "";
+    if (path === "doctor-list") return "doctorList";
+    if (path === "approval-waiting") return "approvalWaiting";
+    if (path === "medical-data-send") return "medicalDataSend";
+    if (path === "medical-data-receive") return "medicalDataReceive";
+    if (path === "user-management") return "userManagement";
+    if (path === "hospital-management") return "hospitalManagement";
+    return "doctorList";
+  };
 
   const handleLogout = async () => {
     await web3AuthLogout();
@@ -158,7 +170,7 @@ export default function Home() {
         >
           <Menu
             mode="inline"
-            defaultSelectedKeys={["doctorList"]}
+            selectedKeys={[getSelectedKey()]}
             items={menuItems}
             onClick={handleMenuClick}
             style={{ padding: "16px 0" }}
