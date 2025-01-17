@@ -5,6 +5,8 @@ import { useState, useEffect } from "react";
 import { Actor, HttpAgent } from "@dfinity/agent";
 import { idlFactory } from "../../../../declarations/mutual-link-backend/mutual-link-backend.did.js";
 import { useAuth } from "@/contexts/AuthContext";
+import CryptoJS from "crypto-js";
+import * as eccrypto from "@toruslabs/eccrypto";
 
 const { Search } = Input;
 
@@ -52,7 +54,108 @@ interface Approval {
   };
   cid: string;
   status: string;
+  encryptedAesKeyForSender: string;
+  encryptedAesKeyForReceiver: string;
 }
+
+// IPFS로부터 파일 다운로드
+const downloadFromIPFS = async (cid: string): Promise<Blob> => {
+  try {
+    const response = await fetch(
+      `https://ipfs.infura.io:5001/api/v0/get?arg=${cid}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization:
+            "Basic " +
+            btoa(
+              "52f7d11b90ec45f1ac9912d0fb864695:248a2ce514834460a25058bf8068e740"
+            ),
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Network response was not ok: ${response.statusText}`);
+    }
+
+    const tarBlob = await response.blob();
+    return tarBlob.slice(512); // Skip tar header (512 bytes) to get raw data
+  } catch (error) {
+    console.error("IPFS 다운로드 실패:", error);
+    throw error;
+  }
+};
+
+// AES 키 복호화
+const decryptAesKey = async (encryptedAesKey: string, privateKey: string) => {
+  try {
+    if (!encryptedAesKey) {
+      throw new Error("암호화된 AES 키가 없습니다.");
+    }
+
+    const encryptedData = JSON.parse(encryptedAesKey);
+    const encryptedBuffer = {
+      iv: Buffer.from(encryptedData.iv, "hex"),
+      ephemPublicKey: Buffer.from(encryptedData.ephemPublicKey, "hex"),
+      ciphertext: Buffer.from(encryptedData.ciphertext, "hex"),
+      mac: Buffer.from(encryptedData.mac, "hex"),
+    };
+
+    const privateKeyBuffer = Buffer.from(privateKey.replace("0x", ""), "hex");
+    const decryptedBuffer = await eccrypto.decrypt(
+      privateKeyBuffer,
+      encryptedBuffer
+    );
+    return decryptedBuffer.toString("hex");
+  } catch (error) {
+    console.error("AES 키 복호화 실패:", error);
+    throw error;
+  }
+};
+
+// 파일 복호화 및 다운로드
+const decryptAndDownloadFile = async (
+  encryptedBlob: Blob,
+  aesKey: string,
+  fileName: string
+) => {
+  try {
+    // Base64로 인코딩된 암호화 데이터를 읽기
+    const encryptedBase64 = await encryptedBlob.text();
+
+    // CryptoJS로 복호화
+    const decryptedWordArray = CryptoJS.AES.decrypt(encryptedBase64, aesKey);
+
+    // WordArray를 Uint8Array로 변환
+    const words = decryptedWordArray.words;
+    const sigBytes = decryptedWordArray.sigBytes;
+    const u8 = new Uint8Array(sigBytes);
+    let b = 0;
+    for (let i = 0; i < sigBytes; i++) {
+      const byte = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+      u8[b++] = byte;
+    }
+
+    // Blob 생성
+    const blob = new Blob([u8], { type: "application/zip" });
+
+    // 다운로드 링크 생성
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+
+    // 정리
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (error) {
+    console.error("파일 복호화 실패:", error);
+    throw error;
+  }
+};
 
 const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   const { userInfo } = useAuth();
@@ -114,6 +217,8 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           receiver: approval.receiver,
           cid: approval.cid,
           status: approval.status,
+          encryptedAesKeyForSender: approval.encryptedAesKeyForSender,
+          encryptedAesKeyForReceiver: approval.encryptedAesKeyForReceiver,
         }));
         setApprovals(formattedApprovals);
       } catch (error) {
@@ -126,6 +231,64 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
 
     fetchApprovals();
   }, [userInfo?.name, type]);
+
+  const handleDownload = async (record: any) => {
+    try {
+      if (!userInfo?.privateKey) {
+        message.error("개인키가 없습니다.");
+        return;
+      }
+
+      setLoading(true);
+
+      console.log("다운로드 시작", {
+        userInfo: {
+          name: userInfo.name,
+          privateKey: userInfo.privateKey.substring(0, 10) + "...",
+        },
+        record: {
+          sender: record.sender,
+          receiver: record.receiver,
+          encryptedAesKeyForSender: record.encryptedAesKeyForSender,
+          encryptedAesKeyForReceiver: record.encryptedAesKeyForReceiver,
+        },
+      });
+
+      // 1. IPFS에서 암호화된 파일 다운로드
+      const encryptedBlob = await downloadFromIPFS(record.cid);
+
+      // 2. AES 키 복호화 (송신자 또는 수신자의 암호화된 AES 키 사용)
+      const isSender = userInfo.name === record.sender.doctor;
+      console.log("사용자 역할:", isSender ? "송신자" : "수신자");
+
+      const encryptedAesKey = isSender
+        ? record.encryptedAesKeyForSender
+        : record.encryptedAesKeyForReceiver;
+
+      console.log("선택된 암호화된 AES 키:", {
+        encryptedAesKey,
+        isSender,
+        userInfo: {
+          name: userInfo.name,
+          doctorName: isSender ? record.sender.doctor : record.receiver.doctor,
+        },
+      });
+
+      const aesKey = await decryptAesKey(encryptedAesKey, userInfo.privateKey);
+      console.log("복호화된 AES 키:", aesKey);
+
+      // 3. 파일 복호화 및 다운로드
+      const fileName = `${record.patientName}_${record.title}.zip`;
+      await decryptAndDownloadFile(encryptedBlob, aesKey, fileName);
+
+      message.success("파일 다운로드가 완료되었습니다.");
+    } catch (error) {
+      console.error("다운로드 실패:", error);
+      message.error("파일 다운로드에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const columns: ColumnsType<Approval> = [
     { title: "No", dataIndex: "id", key: "id", width: 70 },
@@ -196,7 +359,11 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       title: "다운로드",
       key: "download",
       width: 70,
-      render: () => <Button type="text" icon={<DownloadOutlined />} />,
+      render: (_, record) => (
+        <Button onClick={() => handleDownload(record)} loading={loading}>
+          다운로드
+        </Button>
+      ),
     },
   ];
 

@@ -24,6 +24,7 @@ interface Web3AuthContextType {
   loginWithGoogle: () => Promise<{
     connected: boolean | null;
     publicKey: string | null;
+    privateKey: string | null;
     email: string | null;
   }>;
   logout: () => Promise<void>;
@@ -97,7 +98,12 @@ export const Web3AuthProvider = ({
 
     if (!web3auth) {
       console.error("web3auth not initialized");
-      return { connected: null, publicKey: null, email: null };
+      return {
+        connected: null,
+        publicKey: null,
+        privateKey: null,
+        email: null,
+      };
     }
 
     try {
@@ -115,6 +121,7 @@ export const Web3AuthProvider = ({
         return {
           connected: true,
           publicKey: publicKey,
+          privateKey: privateKey,
           email: userInfo.email || null,
         };
       }
@@ -137,11 +144,17 @@ export const Web3AuthProvider = ({
       return {
         connected: web3auth.connected,
         publicKey: publicKey,
+        privateKey: privateKey,
         email: userInfo.email || null,
       };
     } catch (error) {
       console.error("Google 로그인 실패:", error);
-      return { connected: null, publicKey: null, email: null };
+      return {
+        connected: null,
+        publicKey: null,
+        privateKey: null,
+        email: null,
+      };
     }
   };
 

@@ -6,6 +6,7 @@ import { idlFactory } from "../../../../declarations/mutual-link-backend/mutual-
 import { UploadOutlined } from "@ant-design/icons";
 import CryptoJS from "crypto-js";
 import { useAuth } from "@/contexts/AuthContext";
+import * as eccrypto from "@toruslabs/eccrypto";
 
 interface BackendDoctor {
   id: bigint;
@@ -57,6 +58,24 @@ const uploadToIPFS = async (
     console.error("IPFS 업로드 실패:", error);
     return null;
   }
+};
+
+// 공개키를 PEM 형식으로 변환하는 함수
+const convertToPEM = (publicKey: string): string => {
+  const pemHeader = "-----BEGIN PUBLIC KEY-----\n";
+  const pemFooter = "\n-----END PUBLIC KEY-----";
+  const keyBuffer = Buffer.from(publicKey.replace("0x", ""), "hex");
+  const base64Key = keyBuffer.toString("base64");
+  return `${pemHeader}${base64Key}${pemFooter}`;
+};
+
+// 안전한 랜덤 키 생성 함수
+const generateRandomKey = async (): Promise<string> => {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 };
 
 const DoctorList = () => {
@@ -145,9 +164,14 @@ const DoctorList = () => {
         return;
       }
 
-      // 1. AES key 생성
-      const aesKey = CryptoJS.lib.WordArray.random(256 / 8);
-      const aesKeyString = aesKey.toString();
+      if (!userInfo?.publicKey || !selectedDoctor?.publicKey) {
+        message.error("송신자 또는 수신자의 공개키가 없습니다.");
+        return;
+      }
+
+      // 1. AES key 생성 (32바이트 = 256비트)
+      const aesKey = await generateRandomKey();
+      console.log("생성된 AES 키:", aesKey);
 
       // 2. 파일 암호화
       const file = values.files?.fileList[0]?.originFileObj;
@@ -158,30 +182,40 @@ const DoctorList = () => {
 
       const reader = new FileReader();
       reader.onload = async (e) => {
-        const fileContent = e.target?.result as string;
+        // 파일을 ArrayBuffer로 읽기
+        const arrayBuffer = e.target?.result as ArrayBuffer;
+        const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
 
-        // 파일 내용 암호화
-        const encryptedFile = CryptoJS.AES.encrypt(
-          fileContent,
-          aesKeyString
-        ).toString();
+        // 파일 내용을 AES로 암호화
+        const encryptedWordArray = CryptoJS.AES.encrypt(wordArray, aesKey);
+        const encryptedBase64 = encryptedWordArray.toString();
 
-        // 3. 송신자의 public key로 AES key 암호화
-        const senderPublicKey = userInfo?.publicKey || "";
-        const encryptedAesKeyForSender = CryptoJS.AES.encrypt(
-          aesKeyString,
-          senderPublicKey
-        ).toString();
+        // 3. 송신자의 공개키로 AES 키 암호화
+        if (!userInfo.publicKey) {
+          message.error("송신자의 공개키가 없습니다.");
+          return;
+        }
+        console.log("송신자 공개키:", userInfo.publicKey);
+        const encryptedAesKeyForSender = await encryptAesKey(
+          aesKey,
+          userInfo.publicKey
+        );
+        console.log("송신자용 암호화된 AES 키:", encryptedAesKeyForSender);
 
-        // 4. 수신자의 public key로 AES key 암호화
-        const receiverPublicKey = selectedDoctor?.publicKey || "";
-        const encryptedAesKeyForReceiver = CryptoJS.AES.encrypt(
-          aesKeyString,
-          receiverPublicKey
-        ).toString();
+        // 4. 수신자의 공개키로 AES 키 암호화
+        if (!selectedDoctor.publicKey) {
+          message.error("수신자의 공개키가 없습니다.");
+          return;
+        }
+        console.log("수신자 공개키:", selectedDoctor.publicKey);
+        const encryptedAesKeyForReceiver = await encryptAesKey(
+          aesKey,
+          selectedDoctor.publicKey
+        );
+        console.log("수신자용 암호화된 AES 키:", encryptedAesKeyForReceiver);
 
         // 5. 암호화된 파일을 IPFS에 업로드
-        const cid = await uploadToIPFS(encryptedFile);
+        const cid = await uploadToIPFS(encryptedBase64);
         if (!cid) {
           message.error("IPFS 업로드에 실패했습니다.");
           return;
@@ -189,8 +223,8 @@ const DoctorList = () => {
 
         // 6. ApprovalManager에 데이터 저장
         const approvalData = {
-          id: 0, // 백엔드에서 자동 생성
-          date: 0, // 백엔드에서 자동 생성
+          id: 0,
+          date: 0,
           phone: values.phone,
           patientName: values.patientName,
           title: values.title,
@@ -210,6 +244,14 @@ const DoctorList = () => {
           status: "승인대기중",
         };
 
+        console.log("저장할 데이터:", {
+          ...approvalData,
+          encryptedAesKeyForSender:
+            encryptedAesKeyForSender.substring(0, 50) + "...",
+          encryptedAesKeyForReceiver:
+            encryptedAesKeyForReceiver.substring(0, 50) + "...",
+        });
+
         try {
           const result = await backendActor.createApproval(approvalData);
           if ("ok" in result) {
@@ -224,10 +266,44 @@ const DoctorList = () => {
         }
       };
 
-      reader.readAsText(file);
+      reader.readAsArrayBuffer(file);
     } catch (error) {
       console.error("업로드 실패:", error);
       message.error("진료 기록 전송에 실패했습니다.");
+    }
+  };
+
+  const encryptAesKey = async (aesKey: string, publicKey: string) => {
+    try {
+      if (!publicKey) {
+        throw new Error("Public key is required");
+      }
+
+      // 공개키에서 0x prefix 제거
+      const cleanPublicKey = publicKey.replace("0x", "");
+
+      const aesKeyBuffer = Buffer.from(aesKey, "hex");
+      const publicKeyBuffer = Buffer.from(cleanPublicKey, "hex");
+
+      const encryptedData = (await eccrypto.encrypt(
+        publicKeyBuffer,
+        aesKeyBuffer
+      )) as {
+        iv: Buffer;
+        ephemPublicKey: Buffer;
+        ciphertext: Buffer;
+        mac: Buffer;
+      };
+
+      return JSON.stringify({
+        iv: encryptedData.iv.toString("hex"),
+        ephemPublicKey: encryptedData.ephemPublicKey.toString("hex"),
+        ciphertext: encryptedData.ciphertext.toString("hex"),
+        mac: encryptedData.mac.toString("hex"),
+      });
+    } catch (error) {
+      console.error("Encryption failed:", error);
+      throw error;
     }
   };
 
