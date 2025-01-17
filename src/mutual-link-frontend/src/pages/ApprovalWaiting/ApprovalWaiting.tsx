@@ -54,9 +54,7 @@ const ApprovalWaiting = () => {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [loading, setLoading] = useState(false);
   const [backendActor, setBackendActor] = useState<any>(null);
-  const [searchRole, setSearchRole] = useState<"receiver" | "sender">(
-    "receiver"
-  );
+  const [searchRole, setSearchRole] = useState<"receiver" | "sender">("sender");
 
   useEffect(() => {
     const initActor = async () => {
