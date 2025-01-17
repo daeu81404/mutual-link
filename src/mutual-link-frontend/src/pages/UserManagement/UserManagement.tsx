@@ -14,6 +14,7 @@ import type { ColumnsType } from "antd/es/table";
 import { Actor, HttpAgent } from "@dfinity/agent";
 import { Principal } from "@dfinity/principal";
 import { idlFactory } from "../../../../declarations/mutual-link-backend/mutual-link-backend.did.js";
+import { CopyOutlined } from "@ant-design/icons";
 
 interface Doctor {
   id: bigint;
@@ -128,14 +129,25 @@ const UserManagement = () => {
       title: "Public Key",
       dataIndex: "publicKey",
       key: "publicKey",
-      ellipsis: {
-        showTitle: false,
-      },
-      render: (publicKey: string) => (
-        <Tooltip placement="topLeft" title={publicKey}>
-          {publicKey || "-"}
-        </Tooltip>
-      ),
+      width: 300,
+      render: (publicKey: string) =>
+        publicKey ? (
+          <div
+            style={{ cursor: "pointer" }}
+            onClick={() => {
+              navigator.clipboard.writeText(publicKey);
+              message.success("Public Key가 클립보드에 복사되었습니다.");
+            }}
+            title={publicKey}
+          >
+            <Space>
+              <span>{publicKey.substring(0, 15)}...</span>
+              <CopyOutlined style={{ color: "#1890ff" }} />
+            </Space>
+          </div>
+        ) : (
+          <span style={{ color: "#ff4d4f" }}>최초 로그인 대기</span>
+        ),
     },
     {
       title: "작업",

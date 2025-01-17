@@ -1,5 +1,5 @@
 import { Table, Select, Input, Button, Space, message } from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
+import { DownloadOutlined, CopyOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useState, useEffect } from "react";
 import { Actor, HttpAgent } from "@dfinity/agent";
@@ -381,7 +381,27 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         </>
       ),
     },
-    { title: "CID", dataIndex: "cid", key: "cid", width: 150 },
+    {
+      title: "CID",
+      dataIndex: "cid",
+      key: "cid",
+      width: 150,
+      render: (cid: string) => (
+        <div
+          style={{ cursor: "pointer" }}
+          onClick={() => {
+            navigator.clipboard.writeText(cid);
+            message.success("CID가 클립보드에 복사되었습니다.");
+          }}
+          title={cid}
+        >
+          <Space>
+            <span>{cid.substring(0, 15)}...</span>
+            <CopyOutlined style={{ color: "#1890ff" }} />
+          </Space>
+        </div>
+      ),
+    },
     {
       title: "전송 기록 / 이관",
       key: "action",
