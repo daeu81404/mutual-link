@@ -51,6 +51,8 @@ export default function FileViewerModal({
   );
   const [selectedPdfIndex, setSelectedPdfIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [scrollAccumulator, setScrollAccumulator] = useState(0);
+  const SCROLL_THRESHOLD = 100; // 스크롤 임계값 설정
 
   useEffect(() => {
     console.log("FileViewerModal useEffect 시작");
@@ -254,24 +256,36 @@ export default function FileViewerModal({
     e: React.WheelEvent<HTMLDivElement>,
     type: "dicom" | "images"
   ) => {
-    e.preventDefault(); // 스크롤 이벤트 기본 동작 방지
+    e.preventDefault();
     const { deltaY } = e;
 
-    if (type === "dicom") {
-      if (deltaY > 0 && currentDicomIndex < files.dicom.length - 1) {
-        // 아래로 스크롤
-        setCurrentDicomIndex((prev) => prev + 1);
-      } else if (deltaY < 0 && currentDicomIndex > 0) {
-        // 위로 스크롤
-        setCurrentDicomIndex((prev) => prev - 1);
+    setScrollAccumulator((prev) => {
+      const newAccumulator = prev + deltaY;
+
+      if (Math.abs(newAccumulator) >= SCROLL_THRESHOLD) {
+        if (type === "dicom") {
+          if (
+            newAccumulator > 0 &&
+            currentDicomIndex < files.dicom.length - 1
+          ) {
+            setCurrentDicomIndex((prev) => prev + 1);
+          } else if (newAccumulator < 0 && currentDicomIndex > 0) {
+            setCurrentDicomIndex((prev) => prev - 1);
+          }
+        } else if (type === "images") {
+          if (
+            newAccumulator > 0 &&
+            currentImageIndex < files.images.length - 1
+          ) {
+            setCurrentImageIndex((prev) => prev + 1);
+          } else if (newAccumulator < 0 && currentImageIndex > 0) {
+            setCurrentImageIndex((prev) => prev - 1);
+          }
+        }
+        return 0; // 누적값 초기화
       }
-    } else if (type === "images") {
-      if (deltaY > 0 && currentImageIndex < files.images.length - 1) {
-        setCurrentImageIndex((prev) => prev + 1);
-      } else if (deltaY < 0 && currentImageIndex > 0) {
-        setCurrentImageIndex((prev) => prev - 1);
-      }
-    }
+      return newAccumulator;
+    });
   };
 
   const handleClose = () => {
@@ -287,6 +301,7 @@ export default function FileViewerModal({
     setImageViewMode("scroll");
     setSelectedPdfIndex(null);
     setIsLoading(false);
+    setScrollAccumulator(0); // 스크롤 누적값도 초기화
 
     // cleanup
     if (dicomContainerRef.current?.dataset.cornerstoneEnabled) {
