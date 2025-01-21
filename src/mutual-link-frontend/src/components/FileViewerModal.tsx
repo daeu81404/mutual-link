@@ -4,8 +4,7 @@ import cornerstone from "cornerstone-core";
 import cornerstoneWADOImageLoader from "cornerstone-wado-image-loader";
 import cornerstoneTools from "cornerstone-tools";
 import Hammer from "hammerjs";
-import { Document, Page } from "react-pdf";
-import * as pdfjs from "pdfjs-dist";
+import { Document, Page, pdfjs } from "react-pdf";
 import dicomParser from "dicom-parser";
 import {
   FileImageOutlined,
@@ -13,6 +12,13 @@ import {
   PictureOutlined,
 } from "@ant-design/icons";
 import type { RadioChangeEvent } from "antd";
+
+// PDF.js 워커 및 스타일 설정
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+
+// PDF 스타일 import
+import "react-pdf/dist/esm/Page/AnnotationLayer.css";
+import "react-pdf/dist/esm/Page/TextLayer.css";
 
 // Cornerstone Tools 초기화
 console.log("Cornerstone 초기화 시작");
@@ -53,6 +59,7 @@ export default function FileViewerModal({
   const [isLoading, setIsLoading] = useState(false);
   const [scrollAccumulator, setScrollAccumulator] = useState(0);
   const SCROLL_THRESHOLD = 100; // 스크롤 임계값 설정
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
 
   useEffect(() => {
     console.log("FileViewerModal useEffect 시작");
@@ -170,24 +177,40 @@ export default function FileViewerModal({
 
   // PDF 탭 활성화 시 실행되는 useEffect
   useEffect(() => {
+    console.log("[PDF Debug] useEffect 시작", {
+      visible,
+      activeTab,
+      pdfLength: files.pdf.length,
+    });
     if (!visible || activeTab !== "pdf" || !files.pdf.length) return;
 
     const loadPdf = async () => {
       try {
-        console.log("PDF 파일 로드 시작");
+        console.log("[PDF Debug] PDF 로딩 시작");
+        setIsPdfLoading(true);
+        setError(null);
         const blob = new Blob([files.pdf[0]], { type: "application/pdf" });
-        console.log("PDF Blob 생성 완료, 크기:", blob.size);
+        console.log("[PDF Debug] Blob 생성 완료", { size: blob.size });
         const url = URL.createObjectURL(blob);
+        console.log("[PDF Debug] URL 생성 완료", { url });
         setPdfUrl(url);
-        console.log("PDF URL 생성 완료:", url);
       } catch (error) {
         const err = error as Error;
-        console.error("PDF 파일 로드 실패:", err);
+        console.error("[PDF Debug] PDF 로드 실패:", err);
         setError(`PDF 파일을 로드하는데 실패했습니다: ${err.message}`);
+      } finally {
+        console.log("[PDF Debug] PDF 로딩 완료");
+        setIsPdfLoading(false);
       }
     };
 
     loadPdf();
+
+    return () => {
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
   }, [visible, activeTab, files.pdf]);
 
   const handlePrevDicom = () => {
@@ -536,43 +559,82 @@ export default function FileViewerModal({
       children: files.pdf.length > 0 && (
         <div style={{ padding: "16px 0" }}>
           {selectedPdfIndex !== null ? (
-            <div>
-              <Space style={{ marginBottom: 16 }}>
-                <Button onClick={() => setSelectedPdfIndex(null)}>
-                  목록으로 돌아가기
-                </Button>
-                <Button onClick={handlePrevPage} disabled={pageNumber === 1}>
-                  이전 페이지
-                </Button>
-                <span>
-                  {pageNumber} / {numPages}
-                </span>
-                <Button
-                  onClick={handleNextPage}
-                  disabled={pageNumber === numPages}
-                >
-                  다음 페이지
-                </Button>
-              </Space>
-              <Document
-                file={pdfUrl}
-                onLoadSuccess={({ numPages }) => {
-                  setNumPages(numPages);
+            <Spin spinning={isPdfLoading} tip="PDF 파일을 불러오는 중...">
+              <div
+                style={{
+                  position: "relative",
+                  zIndex: 1002,
+                  background: "white",
                 }}
               >
-                <Page
-                  pageNumber={pageNumber}
-                  width={Math.min(window.innerWidth - 48, 1152)}
-                  onLoadSuccess={() => {
-                    console.log("PDF 페이지 로드 완료");
-                  }}
-                  onRenderError={(error: Error) => {
-                    console.error("PDF 페이지 로드 실패:", error);
-                    setError("PDF 페이지를 로드하는데 실패했습니다.");
-                  }}
-                />
-              </Document>
-            </div>
+                <Space style={{ marginBottom: 16 }}>
+                  <Button
+                    onClick={() => {
+                      console.log("[PDF Debug] 목록으로 돌아가기 클릭");
+                      setSelectedPdfIndex(null);
+                      setPdfUrl(null);
+                    }}
+                  >
+                    목록으로 돌아가기
+                  </Button>
+                  <Button onClick={handlePrevPage} disabled={pageNumber === 1}>
+                    이전 페이지
+                  </Button>
+                  <span>
+                    {pageNumber} / {numPages}
+                  </span>
+                  <Button
+                    onClick={handleNextPage}
+                    disabled={pageNumber === numPages}
+                  >
+                    다음 페이지
+                  </Button>
+                </Space>
+                <div style={{ background: "white", padding: "16px 0" }}>
+                  <Document
+                    file={pdfUrl}
+                    onLoadSuccess={({ numPages }) => {
+                      console.log("[PDF Debug] Document 로드 성공", {
+                        numPages,
+                      });
+                      setNumPages(numPages);
+                      setIsPdfLoading(false);
+                    }}
+                    onLoadError={(error: Error) => {
+                      console.error("[PDF Debug] Document 로드 실패:", error);
+                      setError("PDF 파일을 로드하는데 실패했습니다.");
+                      setIsPdfLoading(false);
+                    }}
+                    loading={<Spin tip="PDF 파일을 불러오는 중..." />}
+                    options={{
+                      cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist/cmaps/",
+                      cMapPacked: true,
+                      standardFontDataUrl:
+                        "https://cdn.jsdelivr.net/npm/pdfjs-dist/standard_fonts/",
+                      enableXfa: true,
+                      useSystemFonts: true,
+                    }}
+                  >
+                    <Page
+                      pageNumber={pageNumber}
+                      width={Math.min(window.innerWidth - 48, 1152)}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                      onLoadSuccess={() => {
+                        console.log("[PDF Debug] Page 로드 성공", {
+                          pageNumber,
+                        });
+                      }}
+                      onRenderError={(error: Error) => {
+                        console.error("[PDF Debug] Page 렌더링 실패:", error);
+                        setError("PDF 페이지를 로드하는데 실패했습니다.");
+                      }}
+                      loading={<Spin tip="페이지를 불러오는 중..." />}
+                    />
+                  </Document>
+                </div>
+              </div>
+            </Spin>
           ) : (
             <div>
               {files.pdf.map((_, index) => (
@@ -580,17 +642,19 @@ export default function FileViewerModal({
                   key={index}
                   style={{ marginBottom: 8, display: "block" }}
                   onClick={() => {
+                    console.log("[PDF Debug] PDF 파일 선택", { index });
                     setSelectedPdfIndex(index);
                     setPageNumber(1);
-                    // 기존 PDF URL이 있다면 해제
                     if (pdfUrl) {
+                      console.log("[PDF Debug] 기존 URL 해제");
                       URL.revokeObjectURL(pdfUrl);
                     }
-                    // 새로운 PDF 파일 로드
                     const blob = new Blob([files.pdf[index]], {
                       type: "application/pdf",
                     });
-                    setPdfUrl(URL.createObjectURL(blob));
+                    const url = URL.createObjectURL(blob);
+                    console.log("[PDF Debug] 새 URL 생성", { url });
+                    setPdfUrl(url);
                   }}
                 >
                   PDF 파일 {index + 1}
@@ -628,8 +692,17 @@ export default function FileViewerModal({
       height="90vh"
       width="100%"
       bodyStyle={{ padding: 0, overflow: "auto" }}
+      zIndex={1000}
     >
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+      <div
+        style={{
+          maxWidth: 1200,
+          margin: "0 auto",
+          padding: "0 24px",
+          position: "relative",
+          zIndex: 1001,
+        }}
+      >
         <Spin spinning={isLoading} tip="파일을 불러오는 중...">
           <Tabs
             activeKey={activeTab}
