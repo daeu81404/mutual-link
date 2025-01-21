@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Drawer, Button, Space, Tabs, Radio } from "antd";
+import { Drawer, Button, Space, Tabs, Radio, Spin } from "antd";
 import cornerstone from "cornerstone-core";
 import cornerstoneWADOImageLoader from "cornerstone-wado-image-loader";
 import cornerstoneTools from "cornerstone-tools";
@@ -50,6 +50,7 @@ export default function FileViewerModal({
     "scroll"
   );
   const [selectedPdfIndex, setSelectedPdfIndex] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     console.log("FileViewerModal useEffect 시작");
@@ -97,6 +98,7 @@ export default function FileViewerModal({
   // 모달이 열릴 때 실행되는 useEffect
   useEffect(() => {
     if (visible) {
+      setIsLoading(true);
       // 모달이 열릴 때 DICOM 탭을 기본으로 설정하고 약간의 딜레이 후 초기화
       setActiveTab("dicom");
       setCurrentDicomIndex(0);
@@ -136,16 +138,21 @@ export default function FileViewerModal({
                 if (dicomContainerRef.current) {
                   cornerstone.displayImage(dicomContainerRef.current, image);
                 }
+                setIsLoading(false);
               },
               (error) => {
                 console.error("DICOM 이미지 로드 실패:", error);
                 setError("DICOM 이미지를 로드하는데 실패했습니다.");
+                setIsLoading(false);
               }
             );
           } catch (error) {
             console.error("DICOM 초기화 실패:", error);
             setError("DICOM 뷰어를 초기화하는데 실패했습니다.");
+            setIsLoading(false);
           }
+        } else {
+          setIsLoading(false);
         }
       }, 100);
     } else {
@@ -279,6 +286,7 @@ export default function FileViewerModal({
     setDicomViewMode("scroll");
     setImageViewMode("scroll");
     setSelectedPdfIndex(null);
+    setIsLoading(false);
 
     // cleanup
     if (dicomContainerRef.current?.dataset.cornerstoneEnabled) {
@@ -561,17 +569,19 @@ export default function FileViewerModal({
       bodyStyle={{ padding: 0, overflow: "auto" }}
     >
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
-        <Tabs
-          activeKey={activeTab}
-          onChange={(key) => {
-            setActiveTab(key);
-          }}
-          items={items}
-          style={{ padding: "16px 0" }}
-        />
-        {error && (
-          <div style={{ color: "red", marginBottom: "16px" }}>{error}</div>
-        )}
+        <Spin spinning={isLoading} tip="파일을 불러오는 중...">
+          <Tabs
+            activeKey={activeTab}
+            onChange={(key) => {
+              setActiveTab(key);
+            }}
+            items={items}
+            style={{ padding: "16px 0" }}
+          />
+          {error && (
+            <div style={{ color: "red", marginBottom: "16px" }}>{error}</div>
+          )}
+        </Spin>
       </div>
     </Drawer>
   );

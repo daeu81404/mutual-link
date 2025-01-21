@@ -1,4 +1,4 @@
-import { Table, Select, Input, Button, Space, message } from "antd";
+import { Table, Select, Input, Button, Space, message, Modal } from "antd";
 import { DownloadOutlined, CopyOutlined, EyeOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useState, useEffect } from "react";
@@ -275,6 +275,16 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   }, [userInfo?.name, type]);
 
   const handleFileView = async (record: Approval) => {
+    // 전체 화면 로딩 표시
+    const loadingModal = Modal.info({
+      title: "파일 처리 중...",
+      content: "진료 데이터를 불러오는 중입니다.",
+      icon: <></>,
+      okButtonProps: { style: { display: "none" } },
+      centered: true,
+      maskClosable: false,
+    });
+
     try {
       if (!userInfo?.privateKey) {
         message.error("개인키가 없습니다.");
@@ -401,6 +411,8 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     } catch (error) {
       console.error("파일 처리 실패:", error);
       message.error("파일을 처리하는데 실패했습니다.");
+    } finally {
+      loadingModal.destroy(); // 로딩 모달 닫기
     }
   };
 
