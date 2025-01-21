@@ -260,6 +260,8 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           encryptedAesKeyForSender: approval.encryptedAesKeyForSender,
           encryptedAesKeyForReceiver: approval.encryptedAesKeyForReceiver,
         }));
+        // ID 기준 내림차순 정렬
+        formattedApprovals.sort((a, b) => b.id - a.id);
         setApprovals(formattedApprovals);
       } catch (error) {
         console.error("승인 목록 조회 실패:", error);
@@ -403,7 +405,12 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   };
 
   const columns: ColumnsType<Approval> = [
-    { title: "No", dataIndex: "id", key: "id", width: 70 },
+    {
+      title: "No",
+      dataIndex: "id",
+      key: "id",
+      width: 70,
+    },
     {
       title: "생성일",
       key: "date",
