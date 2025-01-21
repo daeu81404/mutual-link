@@ -319,17 +319,35 @@ export default function FileViewerModal({
           height: dicomViewMode === "scroll" ? "calc(90vh - 250px)" : "auto",
           overflow: dicomViewMode === "scroll" ? "hidden" : "auto",
         }}
-        onWheel={(e) => dicomViewMode === "scroll" && handleScroll(e, "dicom")}
+        onWheel={(e) => {
+          e.preventDefault();
+          handleScroll(e, "dicom");
+        }}
       >
         {dicomViewMode === "expand" ? (
           // 펼쳐보기 모드
-          <div>
+          <div
+            style={{
+              height: "calc(90vh - 250px)",
+              overflowY: "auto",
+            }}
+            onWheel={(e) => {
+              const target = e.target as HTMLElement;
+              const container = target.closest('[id^="dicom-container-"]');
+              if (container) {
+                e.stopPropagation();
+                e.preventDefault();
+                container.parentElement?.parentElement?.scrollBy({
+                  top: e.deltaY,
+                });
+              }
+            }}
+          >
             {Array.from({ length: files.dicom.length }).map((_, index) => (
               <div
                 key={index}
                 style={{
                   marginBottom: 24,
-                  scrollSnapAlign: "start",
                 }}
               >
                 <div style={{ marginBottom: 8 }}>DICOM 파일 {index + 1}</div>
@@ -339,8 +357,20 @@ export default function FileViewerModal({
                     width: "100%",
                     height: "calc(90vh - 350px)",
                     backgroundColor: "black",
+                    position: "relative",
                   }}
-                />
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      zIndex: 1,
+                    }}
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -356,8 +386,24 @@ export default function FileViewerModal({
                 width: "100%",
                 height: "calc(100% - 32px)",
                 backgroundColor: "black",
+                position: "relative",
               }}
-            />
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 1,
+                }}
+                onWheel={(e) => {
+                  e.stopPropagation();
+                  handleScroll(e, "dicom");
+                }}
+              />
+            </div>
           </div>
         )}
       </div>
