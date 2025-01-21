@@ -1,9 +1,10 @@
-import { Table, Select, Input, message } from "antd";
+import { Table, Select, Input, message, Space } from "antd";
 import { useState, useEffect } from "react";
 import type { ColumnsType } from "antd/es/table";
 import { Actor, HttpAgent } from "@dfinity/agent";
 import { idlFactory } from "../../../../declarations/mutual-link-backend/mutual-link-backend.did.js";
 import { useAuth } from "@/contexts/AuthContext";
+import { CopyOutlined } from "@ant-design/icons";
 
 const { Search } = Input;
 
@@ -172,7 +173,27 @@ const ApprovalWaiting = () => {
         </>
       ),
     },
-    { title: "CID", dataIndex: "cid", key: "cid", width: 150 },
+    {
+      title: "CID",
+      dataIndex: "cid",
+      key: "cid",
+      width: 150,
+      render: (cid: string) => (
+        <div
+          style={{ cursor: "pointer" }}
+          onClick={() => {
+            navigator.clipboard.writeText(cid);
+            message.success("CID가 클립보드에 복사되었습니다.");
+          }}
+          title={cid}
+        >
+          <Space>
+            <span>{cid.substring(0, 15)}...</span>
+            <CopyOutlined style={{ color: "#1890ff" }} />
+          </Space>
+        </div>
+      ),
+    },
     {
       title: "상태",
       dataIndex: "status",
