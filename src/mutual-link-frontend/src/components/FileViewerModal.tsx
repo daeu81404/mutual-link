@@ -43,7 +43,12 @@ export default function FileViewerModal({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("dicom");
-  const [viewMode, setViewMode] = useState<"scroll" | "expand">("scroll");
+  const [dicomViewMode, setDicomViewMode] = useState<"scroll" | "expand">(
+    "scroll"
+  );
+  const [imageViewMode, setImageViewMode] = useState<"scroll" | "expand">(
+    "scroll"
+  );
   const [selectedPdfIndex, setSelectedPdfIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -229,13 +234,13 @@ export default function FileViewerModal({
   // currentDicomIndex가 변경될 때마다 DICOM 이미지를 업데이트하는 useEffect 추가
   useEffect(() => {
     if (
-      viewMode === "scroll" &&
+      dicomViewMode === "scroll" &&
       dicomContainerRef.current &&
       files.dicom[currentDicomIndex]
     ) {
       renderDicomFile(currentDicomIndex, dicomContainerRef);
     }
-  }, [currentDicomIndex, viewMode]);
+  }, [currentDicomIndex, dicomViewMode]);
 
   // 스크롤 이벤트 핸들러 수정
   const handleScroll = (
@@ -262,6 +267,174 @@ export default function FileViewerModal({
     }
   };
 
+  const handleClose = () => {
+    // 모든 상태 초기화
+    setCurrentDicomIndex(0);
+    setCurrentImageIndex(0);
+    setNumPages(1);
+    setPageNumber(1);
+    setPdfUrl(null);
+    setError(null);
+    setActiveTab("dicom");
+    setDicomViewMode("scroll");
+    setImageViewMode("scroll");
+    setSelectedPdfIndex(null);
+
+    // cleanup
+    if (dicomContainerRef.current?.dataset.cornerstoneEnabled) {
+      cornerstone.disable(dicomContainerRef.current);
+    }
+    if (pdfUrl) {
+      URL.revokeObjectURL(pdfUrl);
+    }
+
+    onClose();
+  };
+
+  // DICOM 탭의 내용
+  const renderDicomContent = () => (
+    <div style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: 16 }}>
+        <Radio.Group
+          value={dicomViewMode}
+          onChange={(e: RadioChangeEvent) => setDicomViewMode(e.target.value)}
+          optionType="button"
+          buttonStyle="solid"
+        >
+          <Radio.Button value="scroll">스크롤로 이동</Radio.Button>
+          <Radio.Button value="expand">펼쳐보기</Radio.Button>
+        </Radio.Group>
+      </Space>
+
+      <div
+        style={{
+          height: dicomViewMode === "scroll" ? "calc(90vh - 250px)" : "auto",
+          overflow: dicomViewMode === "scroll" ? "hidden" : "auto",
+        }}
+        onWheel={(e) => dicomViewMode === "scroll" && handleScroll(e, "dicom")}
+      >
+        {dicomViewMode === "expand" ? (
+          // 펼쳐보기 모드
+          <div>
+            {Array.from({ length: files.dicom.length }).map((_, index) => (
+              <div
+                key={index}
+                style={{
+                  marginBottom: 24,
+                  scrollSnapAlign: "start",
+                }}
+              >
+                <div style={{ marginBottom: 8 }}>DICOM 파일 {index + 1}</div>
+                <div
+                  id={`dicom-container-${index}`}
+                  style={{
+                    width: "100%",
+                    height: "calc(90vh - 350px)",
+                    backgroundColor: "black",
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          // 스크롤 모드
+          <div style={{ height: "100%" }}>
+            <div style={{ marginBottom: 8 }}>
+              DICOM 파일 {currentDicomIndex + 1} / {files.dicom.length}
+            </div>
+            <div
+              ref={dicomContainerRef}
+              style={{
+                width: "100%",
+                height: "calc(100% - 32px)",
+                backgroundColor: "black",
+              }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // 이미지 탭의 내용
+  const renderImageContent = () => (
+    <div style={{ padding: "16px 0" }}>
+      <Space style={{ marginBottom: 16 }}>
+        <Radio.Group
+          value={imageViewMode}
+          onChange={(e: RadioChangeEvent) => setImageViewMode(e.target.value)}
+          optionType="button"
+          buttonStyle="solid"
+        >
+          <Radio.Button value="scroll">스크롤로 이동</Radio.Button>
+          <Radio.Button value="expand">펼쳐보기</Radio.Button>
+        </Radio.Group>
+      </Space>
+
+      <div
+        style={{
+          height: imageViewMode === "scroll" ? "calc(90vh - 250px)" : "auto",
+          overflow: imageViewMode === "scroll" ? "hidden" : "auto",
+        }}
+        onWheel={(e) => imageViewMode === "scroll" && handleScroll(e, "images")}
+      >
+        {imageViewMode === "expand" ? (
+          // 펼쳐보기 모드
+          <div>
+            {Array.from({ length: files.images.length }).map((_, index) => {
+              const url = URL.createObjectURL(new Blob([files.images[index]]));
+              return (
+                <div
+                  key={index}
+                  style={{
+                    marginBottom: 24,
+                    scrollSnapAlign: "start",
+                  }}
+                >
+                  <div style={{ marginBottom: 8 }}>이미지 {index + 1}</div>
+                  <img
+                    src={url}
+                    alt={`이미지 ${index + 1}`}
+                    style={{
+                      width: "100%",
+                      height: "calc(90vh - 350px)",
+                      objectFit: "contain",
+                    }}
+                    onLoad={() => URL.revokeObjectURL(url)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          // 스크롤 모드
+          <div style={{ height: "100%" }}>
+            {files.images.map((image, index) => {
+              if (index !== currentImageIndex) return null;
+              const url = URL.createObjectURL(new Blob([image]));
+              return (
+                <div key={index} style={{ height: "100%" }}>
+                  <div style={{ marginBottom: 8 }}>이미지 {index + 1}</div>
+                  <img
+                    src={url}
+                    alt={`이미지 ${index + 1}`}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      height: "calc(100% - 32px)",
+                      objectFit: "contain",
+                    }}
+                    onLoad={() => URL.revokeObjectURL(url)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   const items = [
     {
       key: "dicom",
@@ -271,75 +444,7 @@ export default function FileViewerModal({
           DICOM ({files.dicom.length})
         </span>
       ),
-      children: files.dicom.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <Space style={{ marginBottom: 16 }}>
-            <Radio.Group
-              value={viewMode}
-              onChange={(e: RadioChangeEvent) => setViewMode(e.target.value)}
-              optionType="button"
-              buttonStyle="solid"
-            >
-              <Radio.Button value="scroll">스크롤로 이동</Radio.Button>
-              <Radio.Button value="expand">펼쳐보기</Radio.Button>
-            </Radio.Group>
-          </Space>
-
-          <div
-            style={{
-              height: viewMode === "scroll" ? "calc(90vh - 250px)" : "auto",
-              overflow: viewMode === "scroll" ? "hidden" : "auto",
-            }}
-            onWheel={(e) => viewMode === "scroll" && handleScroll(e, "dicom")}
-          >
-            {viewMode === "expand" ? (
-              // 펼쳐보기 모드
-              <div>
-                {Array.from({ length: files.dicom.length }).map((_, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      marginBottom: 24,
-                      scrollSnapAlign: "start",
-                    }}
-                  >
-                    <div style={{ marginBottom: 8 }}>
-                      DICOM 파일 {index + 1}
-                    </div>
-                    <div
-                      ref={(el) => {
-                        if (el) {
-                          renderDicomFile(index, { current: el });
-                        }
-                      }}
-                      style={{
-                        width: "100%",
-                        height: "calc(90vh - 350px)",
-                        backgroundColor: "black",
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              // 스크롤 모드
-              <div style={{ height: "100%" }}>
-                <div style={{ marginBottom: 8 }}>
-                  DICOM 파일 {currentDicomIndex + 1} / {files.dicom.length}
-                </div>
-                <div
-                  ref={dicomContainerRef}
-                  style={{
-                    width: "100%",
-                    height: "calc(100% - 32px)",
-                    backgroundColor: "black",
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      ),
+      children: files.dicom.length > 0 && renderDicomContent(),
     },
     {
       key: "images",
@@ -349,84 +454,7 @@ export default function FileViewerModal({
           이미지 ({files.images.length})
         </span>
       ),
-      children: files.images.length > 0 && (
-        <div style={{ padding: "16px 0" }}>
-          <Space style={{ marginBottom: 16 }}>
-            <Radio.Group
-              value={viewMode}
-              onChange={(e: RadioChangeEvent) => setViewMode(e.target.value)}
-              optionType="button"
-              buttonStyle="solid"
-            >
-              <Radio.Button value="scroll">스크롤로 이동</Radio.Button>
-              <Radio.Button value="expand">펼쳐보기</Radio.Button>
-            </Radio.Group>
-          </Space>
-
-          <div
-            style={{
-              height: viewMode === "scroll" ? "calc(90vh - 250px)" : "auto",
-              overflow: viewMode === "scroll" ? "hidden" : "auto",
-            }}
-            onWheel={(e) => viewMode === "scroll" && handleScroll(e, "images")}
-          >
-            {viewMode === "expand" ? (
-              // 펼쳐보기 모드
-              <div>
-                {Array.from({ length: files.images.length }).map((_, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      marginBottom: 24,
-                      scrollSnapAlign: "start",
-                    }}
-                  >
-                    <div style={{ marginBottom: 8 }}>
-                      DICOM 파일 {index + 1}
-                    </div>
-                    <div
-                      ref={(el) => {
-                        if (el) {
-                          renderDicomFile(index, { current: el });
-                        }
-                      }}
-                      style={{
-                        width: "100%",
-                        height: "calc(90vh - 350px)",
-                        backgroundColor: "black",
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              // 스크롤 모드
-              <div style={{ height: "100%" }}>
-                {files.images.map((image, index) => {
-                  if (index !== currentImageIndex) return null;
-                  const url = URL.createObjectURL(new Blob([image]));
-                  return (
-                    <div key={index} style={{ height: "100%" }}>
-                      <div style={{ marginBottom: 8 }}>이미지 {index + 1}</div>
-                      <img
-                        src={url}
-                        alt={`이미지 ${index + 1}`}
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          height: "calc(100% - 32px)",
-                          objectFit: "contain",
-                        }}
-                        onLoad={() => URL.revokeObjectURL(url)}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      ),
+      children: files.images.length > 0 && renderImageContent(),
     },
     {
       key: "pdf",
@@ -506,10 +534,27 @@ export default function FileViewerModal({
     },
   ];
 
+  // activeTab이 변경될 때 DICOM 파일을 다시 렌더링하는 useEffect 수정
+  useEffect(() => {
+    if (activeTab === "dicom" && dicomViewMode === "expand") {
+      // 약간의 딜레이 후 모든 DICOM 파일 다시 렌더링
+      setTimeout(() => {
+        Array.from({ length: files.dicom.length }).forEach((_, index) => {
+          const element = document.getElementById(
+            `dicom-container-${index}`
+          ) as HTMLDivElement;
+          if (element) {
+            renderDicomFile(index, { current: element });
+          }
+        });
+      }, 100);
+    }
+  }, [activeTab, dicomViewMode]);
+
   return (
     <Drawer
       visible={visible}
-      onClose={onClose}
+      onClose={handleClose}
       placement="bottom"
       height="90vh"
       width="100%"
