@@ -9,6 +9,7 @@ import CryptoJS from "crypto-js";
 import * as eccrypto from "@toruslabs/eccrypto";
 import FileViewerModal from "@/components/FileViewerModal";
 import JSZip from "jszip";
+import { MedicalDataCache } from "@/utils/indexedDB";
 
 const { Search } = Input;
 
@@ -210,6 +211,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     pageSize: 10,
     total: 0,
   });
+  const [medicalDataCache] = useState(() => new MedicalDataCache());
 
   useEffect(() => {
     const initActor = async () => {
@@ -287,6 +289,10 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     fetchApprovals();
   }, [userInfo?.name, type, pagination.current, pagination.pageSize]);
 
+  useEffect(() => {
+    medicalDataCache.init();
+  }, []);
+
   const handleFileView = async (record: Approval) => {
     // 전체 화면 로딩 표시
     const loadingModal = Modal.info({
@@ -304,34 +310,60 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         return;
       }
 
-      // 1. IPFS에서 암호화된 파일 다운로드
-      const encryptedBlob = await downloadFromIPFS(record.cid);
-      const encryptedArrayBuffer = await encryptedBlob.arrayBuffer();
-      const encryptedData = new Uint8Array(encryptedArrayBuffer);
-
-      // 2. AES 키 복호화 (송신자 또는 수신자의 암호화된 AES 키 사용)
+      // 송신자 또는 수신자의 암호화된 AES 키 선택
       const isSender = userInfo.name === record.sender.doctor;
       const encryptedAesKey = isSender
         ? record.encryptedAesKeyForSender
         : record.encryptedAesKeyForReceiver;
 
+      if (!encryptedAesKey) {
+        throw new Error("암호화된 AES 키가 없습니다.");
+      }
+
+      // 1. 캐시된 파일이 있는지 확인
+      const cachedData = await medicalDataCache.getCachedFile(record.cid);
+      let encryptedData: ArrayBuffer;
+
+      if (cachedData) {
+        console.log("캐시된 파일을 사용합니다.");
+        message.success("캐시된 파일을 불러옵니다.");
+        encryptedData = cachedData.encryptedData;
+      } else {
+        message.info("파일을 새로 다운로드합니다.");
+        // 2. IPFS에서 암호화된 파일 다운로드
+        const encryptedBlob = await downloadFromIPFS(record.cid);
+        encryptedData = await encryptedBlob.arrayBuffer();
+
+        // 캐시에 암호화된 상태로 저장
+        await medicalDataCache.cacheFile(
+          record.cid,
+          encryptedData,
+          encryptedAesKey
+        );
+      }
+
+      // 3. AES 키 복호화
       const aesKey = await decryptAesKey(encryptedAesKey, userInfo.privateKey);
 
-      // 3. 파일 복호화
+      // 4. 파일 복호화
       const decryptedChunks: Uint8Array[] = [];
+      const encryptedDataArray = new Uint8Array(encryptedData);
       let offset = 0;
 
-      while (offset < encryptedData.length) {
+      while (offset < encryptedDataArray.length) {
         // 청크 크기 읽기 (4바이트)
         const chunkSize =
-          (encryptedData[offset] << 24) |
-          (encryptedData[offset + 1] << 16) |
-          (encryptedData[offset + 2] << 8) |
-          encryptedData[offset + 3];
+          (encryptedDataArray[offset] << 24) |
+          (encryptedDataArray[offset + 1] << 16) |
+          (encryptedDataArray[offset + 2] << 8) |
+          encryptedDataArray[offset + 3];
         offset += 4;
 
         // 청크 데이터 읽기
-        const encryptedChunk = encryptedData.slice(offset, offset + chunkSize);
+        const encryptedChunk = encryptedDataArray.slice(
+          offset,
+          offset + chunkSize
+        );
         offset += chunkSize;
 
         // 바이너리 데이터를 Base64로 변환
@@ -372,7 +404,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         writeOffset += chunk.length;
       }
 
-      // 4. ZIP 파일 처리
+      // 5. ZIP 파일 처리
       const zip = await JSZip.loadAsync(decryptedArrayBuffer);
       const files = {
         dicom: [] as ArrayBuffer[],
@@ -381,43 +413,26 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       };
 
       // 각 파일 처리
-      console.log("ZIP 파일 내용:", Object.keys(zip.files));
       for (const [filename, zipEntry] of Object.entries(zip.files)) {
-        // Mac OS 메타데이터 파일 및 디렉토리 제외
         if (
           zipEntry.dir ||
           filename.startsWith("__MACOSX/") ||
           filename.includes("/._")
         ) {
-          console.log("건너뜀:", filename);
           continue;
         }
 
-        console.log("파일 처리 중:", filename);
         const fileData = await zipEntry.async("arraybuffer");
         const extension = filename.split(".").pop()?.toLowerCase();
-        console.log("파일 확장자:", extension);
 
         if (extension === "dcm") {
-          console.log("DICOM 파일 추가:", filename);
           files.dicom.push(fileData);
         } else if (["jpg", "jpeg", "png", "gif"].includes(extension || "")) {
-          console.log("이미지 파일 추가:", filename);
-          const blob = new Blob([fileData]);
           files.images.push(fileData);
         } else if (extension === "pdf") {
-          console.log("PDF 파일 추가:", filename);
           files.pdf.push(fileData);
-        } else {
-          console.log("지원하지 않는 파일 형식:", filename);
         }
       }
-
-      console.log("최종 파일 개수:", {
-        dicom: files.dicom.length,
-        images: files.images.length,
-        pdf: files.pdf.length,
-      });
 
       setViewerFiles(files);
       setViewerModalVisible(true);
@@ -425,7 +440,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       console.error("파일 처리 실패:", error);
       message.error("파일을 처리하는데 실패했습니다.");
     } finally {
-      loadingModal.destroy(); // 로딩 모달 닫기
+      loadingModal.destroy();
     }
   };
 
