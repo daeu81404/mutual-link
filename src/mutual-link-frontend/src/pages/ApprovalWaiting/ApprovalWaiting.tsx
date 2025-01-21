@@ -56,6 +56,11 @@ const ApprovalWaiting = () => {
   const [loading, setLoading] = useState(false);
   const [backendActor, setBackendActor] = useState<any>(null);
   const [searchRole, setSearchRole] = useState<"receiver" | "sender">("sender");
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
 
   useEffect(() => {
     const initActor = async () => {
@@ -93,22 +98,33 @@ const ApprovalWaiting = () => {
         const actor = await initActor();
         if (!actor || !userInfo?.name) return;
 
+        const offset = (pagination.current - 1) * pagination.pageSize;
         const result = (await actor.getApprovalsByDoctor(
           userInfo.name,
-          searchRole
-        )) as BackendApproval[];
-        const formattedApprovals = result.map((approval: BackendApproval) => ({
-          id: Number(approval.id),
-          date: Number(approval.date),
-          phone: approval.phone,
-          patientName: approval.patientName,
-          title: approval.title,
-          sender: approval.sender,
-          receiver: approval.receiver,
-          cid: approval.cid,
-          status: approval.status,
-        }));
+          searchRole,
+          offset,
+          pagination.pageSize
+        )) as { items: BackendApproval[]; total: bigint };
+
+        const formattedApprovals = result.items.map(
+          (approval: BackendApproval) => ({
+            id: Number(approval.id),
+            date: Number(approval.date),
+            phone: approval.phone,
+            patientName: approval.patientName,
+            title: approval.title,
+            sender: approval.sender,
+            receiver: approval.receiver,
+            cid: approval.cid,
+            status: approval.status,
+          })
+        );
+
         setApprovals(formattedApprovals);
+        setPagination((prev) => ({
+          ...prev,
+          total: Number(result.total.toString()),
+        }));
       } catch (error) {
         console.error("승인 목록 조회 실패:", error);
         message.error("승인 목록을 가져오는데 실패했습니다.");
@@ -118,7 +134,7 @@ const ApprovalWaiting = () => {
     };
 
     fetchApprovals();
-  }, [userInfo?.name, searchRole]);
+  }, [userInfo?.name, searchRole, pagination.current, pagination.pageSize]);
 
   const columns: ColumnsType<Approval> = [
     { title: "No", dataIndex: "id", key: "id", width: 70 },
@@ -212,7 +228,10 @@ const ApprovalWaiting = () => {
         <Select
           value={searchRole}
           style={{ width: 120 }}
-          onChange={(value) => setSearchRole(value)}
+          onChange={(value) => {
+            setSearchRole(value);
+            setPagination((prev) => ({ ...prev, current: 1 }));
+          }}
           options={[
             { value: "receiver", label: "수신자" },
             { value: "sender", label: "송신자" },
@@ -230,9 +249,14 @@ const ApprovalWaiting = () => {
         rowKey="id"
         loading={loading}
         pagination={{
-          total: approvals.length,
-          pageSize: 10,
-          current: 1,
+          ...pagination,
+          onChange: (page, pageSize) => {
+            setPagination((prev) => ({
+              ...prev,
+              current: page,
+              pageSize: pageSize,
+            }));
+          },
         }}
       />
     </div>

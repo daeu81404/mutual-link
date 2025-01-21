@@ -7,6 +7,8 @@ import Hash "mo:base/Hash";
 import Array "mo:base/Array";
 import Time "mo:base/Time";
 import Text "mo:base/Text";
+import Int "mo:base/Int";
+import Order "mo:base/Order";
 
 module {
     public type Approval = {
@@ -29,6 +31,11 @@ module {
         encryptedAesKeyForSender: Text;
         encryptedAesKeyForReceiver: Text;
         status: Text;  // "승인대기중", "승인완료", "승인거절"
+    };
+
+    public type PagedResult = {
+        items: [Approval];
+        total: Nat;
     };
 
     public class ApprovalManager() {
@@ -80,19 +87,69 @@ module {
             }
         };
 
-        public func getAllApprovals() : [Approval] {
-            Iter.toArray(approvals.vals())
+        public func getAllApprovals(offset: Nat, limit: Nat) : PagedResult {
+            let allApprovals = Iter.toArray(approvals.vals());
+            
+            // ID 기준 내림차순 정렬
+            let sortedApprovals = Array.sort<Approval>(
+                allApprovals,
+                func(a: Approval, b: Approval) : Order.Order {
+                    if (a.id > b.id) { #less } 
+                    else if (a.id < b.id) { #greater } 
+                    else { #equal }
+                }
+            );
+
+            // 페이지네이션 적용
+            let total = sortedApprovals.size();
+            let start = if (offset >= total) { total } else { offset };
+            let end = if (start + limit > total) { total } else { start + limit };
+            let pagedApprovals = Array.tabulate<Approval>(
+                end - start,
+                func(i: Nat) : Approval { sortedApprovals[start + i] }
+            );
+
+            {
+                items = pagedApprovals;
+                total = total;
+            }
         };
 
-        public func getApprovalsByDoctor(doctorName: Text, role: Text) : [Approval] {
+        public func getApprovalsByDoctor(doctorName: Text, role: Text, offset: Nat, limit: Nat) : PagedResult {
             let allApprovals = Iter.toArray(approvals.vals());
-            Array.filter<Approval>(allApprovals, func(approval: Approval) : Bool {
+            
+            // 1. 해당 의사의 승인 목록 필터링
+            let filteredApprovals = Array.filter<Approval>(allApprovals, func(approval: Approval) : Bool {
                 if (role == "sender") {
                     approval.sender.doctor == doctorName
                 } else {
                     approval.receiver.doctor == doctorName
                 }
-            })
+            });
+
+            // 2. ID 기준 내림차순 정렬
+            let sortedApprovals = Array.sort<Approval>(
+                filteredApprovals,
+                func(a: Approval, b: Approval) : Order.Order {
+                    if (a.id > b.id) { #less } 
+                    else if (a.id < b.id) { #greater } 
+                    else { #equal }
+                }
+            );
+
+            // 3. 페이지네이션 적용
+            let total = sortedApprovals.size();
+            let start = if (offset >= total) { total } else { offset };
+            let end = if (start + limit > total) { total } else { start + limit };
+            let pagedApprovals = Array.tabulate<Approval>(
+                end - start,
+                func(i: Nat) : Approval { sortedApprovals[start + i] }
+            );
+
+            {
+                items = pagedApprovals;
+                total = total;
+            }
         };
 
         public func getApproval(id: Nat) : ?Approval {

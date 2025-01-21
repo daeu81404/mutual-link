@@ -54,6 +54,7 @@ const UserManagement = () => {
   const [backendActor, setBackendActor] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
 
   useEffect(() => {
     const initActor = async () => {
@@ -91,31 +92,39 @@ const UserManagement = () => {
         const actor = await initActor();
         if (!actor) return;
 
-        const result = (await actor.getAllDoctors()) as Doctor[];
-        const formattedUsers = result.map((doctor: Doctor) => ({
+        const offset = (pagination.current - 1) * pagination.pageSize;
+        const result = (await actor.getPagedDoctors(
+          offset,
+          pagination.pageSize
+        )) as { items: Doctor[]; total: bigint };
+
+        const formattedUsers = result.items.map((doctor: Doctor) => ({
           key: doctor.id.toString(),
-          id: Number(doctor.id),
+          id: Number(doctor.id.toString()),
           name: doctor.name,
           email: doctor.email,
           phone: doctor.phone,
           hospital: doctor.hospital,
           department: doctor.department,
-          role: doctor.role as "admin" | "user",
-          publicKey: doctor.publicKey[0] || undefined,
+          role: doctor.role,
+          publicKey: doctor.publicKey[0],
         }));
+
         setUsers(formattedUsers);
+        setPagination((prev) => ({
+          ...prev,
+          total: Number(result.total.toString()),
+        }));
       } catch (error) {
         console.error("의사 목록 조회 실패:", error);
-        message.error(
-          "의사 목록을 가져오는데 실패했습니다. 개발자 도구의 콘솔을 확인해주세요."
-        );
+        message.error("의사 목록을 가져오는데 실패했습니다.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchDoctors();
-  }, []);
+  }, [pagination.current, pagination.pageSize]);
 
   const columns: ColumnsType<User> = [
     { title: "ID", dataIndex: "id", key: "id" },
@@ -222,7 +231,9 @@ const UserManagement = () => {
         publicKey: editingUser?.publicKey ? [editingUser.publicKey] : [],
       };
 
-      const result = await backendActor.updateDoctor(doctor);
+      const result = editingUser
+        ? await backendActor.updateDoctor(doctor)
+        : await backendActor.createDoctor(doctor);
 
       if ("ok" in result) {
         const newUser = {
@@ -328,17 +339,36 @@ const UserManagement = () => {
             <Input />
           </Form.Item>
           <Form.Item
-            name="role"
             label="권한"
-            rules={[{ required: true, message: "권한을 선택하세요" }]}
+            name="role"
+            rules={[{ required: true, message: "권한을 선택해주세요" }]}
           >
-            <Select>
+            <Select
+              style={{ width: "150px" }}
+              dropdownStyle={{ minWidth: "150px" }}
+            >
               <Select.Option value="admin">관리자</Select.Option>
               <Select.Option value="user">일반 사용자</Select.Option>
             </Select>
           </Form.Item>
         </Form>
       </Modal>
+
+      <style>
+        {`
+          .ant-select-dropdown {
+            min-width: 150px !important;
+          }
+          .ant-select-item-option-content {
+            white-space: nowrap !important;
+            overflow: visible !important;
+          }
+          .ant-select-selection-item {
+            white-space: nowrap !important;
+            overflow: visible !important;
+          }
+        `}
+      </style>
     </div>
   );
 };

@@ -1,4 +1,17 @@
-import { Table, Button, message, Modal, Form, Input, Upload } from "antd";
+import {
+  Table,
+  Button,
+  message,
+  Modal,
+  Form,
+  Input,
+  Upload,
+  Input as AntInput,
+  Card,
+  Row,
+  Col,
+  Statistic,
+} from "antd";
 import { useState, useEffect } from "react";
 import type { ColumnsType } from "antd/es/table";
 import { Actor, HttpAgent } from "@dfinity/agent";
@@ -8,6 +21,8 @@ import CryptoJS from "crypto-js";
 import { useAuth } from "@/contexts/AuthContext";
 import * as eccrypto from "@toruslabs/eccrypto";
 
+const { Search } = AntInput;
+
 interface BackendDoctor {
   id: bigint;
   name: string;
@@ -16,17 +31,18 @@ interface BackendDoctor {
   hospital: string;
   department: string;
   role: string;
-  publicKey: [] | [string];
+  publicKey: string[];
 }
 
 interface Doctor {
-  no: string;
+  id: number;
   name: string;
   email: string;
   phone: string;
   hospital: string;
   department: string;
-  publicKey?: string;
+  role: string;
+  publicKey: string;
 }
 
 // 청크 크기를 500KB로 수정 (메모리 사용량 최적화)
@@ -190,6 +206,11 @@ const DoctorList = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(false);
   const [backendActor, setBackendActor] = useState<any>(null);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [form] = Form.useForm();
@@ -230,31 +251,44 @@ const DoctorList = () => {
         const actor = await initActor();
         if (!actor) return;
 
-        const result = (await actor.getAllDoctors()) as BackendDoctor[];
-        const formattedDoctors = result.map((doctor: BackendDoctor) => ({
-          no: doctor.id.toString(),
+        const offset = (pagination.current - 1) * pagination.pageSize;
+        const result = (await actor.getPagedDoctors(
+          offset,
+          pagination.pageSize
+        )) as { items: BackendDoctor[]; total: bigint };
+
+        const formattedDoctors = result.items.map((doctor: BackendDoctor) => ({
+          id: Number(doctor.id.toString()),
           name: doctor.name,
           email: doctor.email,
           phone: doctor.phone,
           hospital: doctor.hospital,
           department: doctor.department,
-          publicKey: doctor.publicKey[0] || undefined,
+          role: doctor.role,
+          publicKey: doctor.publicKey[0],
         }));
+
         setDoctors(formattedDoctors);
+        setPagination((prev) => ({
+          ...prev,
+          total: Number(result.total.toString()),
+        }));
       } catch (error) {
         console.error("의사 목록 조회 실패:", error);
-        message.error(
-          "의사 목록을 가져오는데 실패했습니다. 개발자 도구의 콘솔을 확인해주세요."
-        );
+        message.error("의사 목록을 가져오는데 실패했습니다.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchDoctors();
-  }, []);
+  }, [pagination.current, pagination.pageSize]);
 
-  const handleUploadClick = (doctor: Doctor) => {
+  const handleUploadClick = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleDoctorUpload = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setIsModalOpen(true);
   };
@@ -422,7 +456,7 @@ const DoctorList = () => {
   };
 
   const columns: ColumnsType<Doctor> = [
-    { title: "No", dataIndex: "no", key: "no" },
+    { title: "No", dataIndex: "id", key: "id" },
     { title: "담당의사", dataIndex: "name", key: "name" },
     { title: "이메일", dataIndex: "email", key: "email" },
     { title: "휴대폰", dataIndex: "phone", key: "phone" },
@@ -437,11 +471,11 @@ const DoctorList = () => {
           return <span style={{ color: "#666" }}>본인</span>;
         }
         // public key가 없는 경우
-        if (!record.publicKey) {
+        if (!record.publicKey || record.publicKey === "undefined") {
           return <span style={{ color: "#ff4d4f" }}>최초 로그인 대기</span>;
         }
         return (
-          <Button type="primary" onClick={() => handleUploadClick(record)}>
+          <Button type="primary" onClick={() => handleDoctorUpload(record)}>
             환자 진료 기록 전송
           </Button>
         );
@@ -450,12 +484,37 @@ const DoctorList = () => {
   ];
 
   return (
-    <>
+    <div style={{ padding: "24px" }}>
+      <div
+        style={{
+          marginBottom: 16,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span>의사명</span>
+        <Search
+          placeholder="검색어를 입력하세요"
+          style={{ width: 300 }}
+          onSearch={(value: string) => console.log(value)}
+        />
+      </div>
       <Table
         columns={columns}
         dataSource={doctors}
-        rowKey="no"
+        rowKey="id"
         loading={loading}
+        pagination={{
+          ...pagination,
+          onChange: (page, pageSize) => {
+            setPagination((prev) => ({
+              ...prev,
+              current: page,
+              pageSize: pageSize,
+            }));
+          },
+        }}
       />
       <Modal
         title="환자 진료 기록 업로드"
@@ -600,7 +659,7 @@ const DoctorList = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </>
+    </div>
   );
 };
 

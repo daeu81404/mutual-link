@@ -7,16 +7,20 @@ actor {
   private let doctorManager = DoctorManagement.DoctorManager();
   private let approvalManager = ApprovalManagement.ApprovalManager();
 
-  public shared(msg) func updateDoctor(doctor: DoctorManagement.Doctor) : async Result.Result<DoctorManagement.Doctor, Text> {
+  public shared (_) func createDoctor(doctor: DoctorManagement.Doctor) : async Result.Result<DoctorManagement.Doctor, Text> {
+    doctorManager.createDoctor(doctor)
+  };
+
+  public shared (_) func updateDoctor(doctor: DoctorManagement.Doctor) : async Result.Result<DoctorManagement.Doctor, Text> {
     doctorManager.updateDoctor(doctor)
   };
 
-  public shared(msg) func deleteDoctor(id: Nat) : async Result.Result<(), Text> {
+  public shared (_) func deleteDoctor(id: Nat) : async Result.Result<(), Text> {
     doctorManager.deleteDoctor(id)
   };
 
-  public query func getAllDoctors() : async [DoctorManagement.Doctor] {
-    doctorManager.getAllDoctors()
+  public query func getPagedDoctors(offset: Nat, limit: Nat) : async DoctorManagement.PagedResult {
+    doctorManager.getAllDoctors(offset, limit)
   };
 
   public query func getDoctor(id: Nat) : async ?DoctorManagement.Doctor {
@@ -24,27 +28,27 @@ actor {
   };
 
   public shared(msg) func updateDoctorPublicKey(email: Text, publicKey: Text) : async Result.Result<DoctorManagement.Doctor, Text> {
-    doctorManager.updateDoctorPublicKey(email, publicKey)
+    doctorManager.updateDoctorPublicKey(email, ?publicKey)
   };
 
   public query func getDoctorByEmail(email: Text) : async ?DoctorManagement.Doctor {
     doctorManager.getDoctorByEmail(email)
   };
 
-  public shared(msg) func createApproval(approval: ApprovalManagement.Approval) : async Result.Result<ApprovalManagement.Approval, Text> {
+  public shared (_) func createApproval(approval: ApprovalManagement.Approval) : async Result.Result<ApprovalManagement.Approval, Text> {
     approvalManager.createApproval(approval)
   };
 
-  public shared(msg) func updateApprovalStatus(id: Nat, status: Text) : async Result.Result<ApprovalManagement.Approval, Text> {
+  public shared (_) func updateApprovalStatus(id: Nat, status: Text) : async Result.Result<ApprovalManagement.Approval, Text> {
     approvalManager.updateApprovalStatus(id, status)
   };
 
-  public query func getAllApprovals() : async [ApprovalManagement.Approval] {
-    approvalManager.getAllApprovals()
+  public query func getPagedApprovals(offset: Nat, limit: Nat) : async ApprovalManagement.PagedResult {
+    approvalManager.getAllApprovals(offset, limit)
   };
 
-  public query func getApprovalsByDoctor(doctorName: Text, role: Text) : async [ApprovalManagement.Approval] {
-    approvalManager.getApprovalsByDoctor(doctorName, role)
+  public query func getApprovalsByDoctor(doctorName: Text, role: Text, offset: Nat, limit: Nat) : async ApprovalManagement.PagedResult {
+    approvalManager.getApprovalsByDoctor(doctorName, role, offset, limit)
   };
 
   public query func getApproval(id: Nat) : async ?ApprovalManagement.Approval {

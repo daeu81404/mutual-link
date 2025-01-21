@@ -205,6 +205,11 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     images: [],
     pdf: [],
   });
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
 
   useEffect(() => {
     const initActor = async () => {
@@ -242,27 +247,35 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         const actor = await initActor();
         if (!actor || !userInfo?.name) return;
 
+        const offset = (pagination.current - 1) * pagination.pageSize;
         const result = (await actor.getApprovalsByDoctor(
           userInfo.name,
-          type === "send" ? "sender" : "receiver"
-        )) as BackendApproval[];
+          type === "send" ? "sender" : "receiver",
+          offset,
+          pagination.pageSize
+        )) as { items: BackendApproval[]; total: bigint };
 
-        const formattedApprovals = result.map((approval: BackendApproval) => ({
-          id: Number(approval.id),
-          date: Number(approval.date),
-          phone: approval.phone,
-          patientName: approval.patientName,
-          title: approval.title,
-          sender: approval.sender,
-          receiver: approval.receiver,
-          cid: approval.cid,
-          status: approval.status,
-          encryptedAesKeyForSender: approval.encryptedAesKeyForSender,
-          encryptedAesKeyForReceiver: approval.encryptedAesKeyForReceiver,
-        }));
-        // ID 기준 내림차순 정렬
-        formattedApprovals.sort((a, b) => b.id - a.id);
+        const formattedApprovals = result.items.map(
+          (approval: BackendApproval) => ({
+            id: Number(approval.id.toString()),
+            date: Number(approval.date.toString()),
+            phone: approval.phone,
+            patientName: approval.patientName,
+            title: approval.title,
+            sender: approval.sender,
+            receiver: approval.receiver,
+            cid: approval.cid,
+            status: approval.status,
+            encryptedAesKeyForSender: approval.encryptedAesKeyForSender,
+            encryptedAesKeyForReceiver: approval.encryptedAesKeyForReceiver,
+          })
+        );
+
         setApprovals(formattedApprovals);
+        setPagination((prev) => ({
+          ...prev,
+          total: Number(result.total.toString()),
+        }));
       } catch (error) {
         console.error("승인 목록 조회 실패:", error);
         message.error("승인 목록을 가져오는데 실패했습니다.");
@@ -272,7 +285,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     };
 
     fetchApprovals();
-  }, [userInfo?.name, type]);
+  }, [userInfo?.name, type, pagination.current, pagination.pageSize]);
 
   const handleFileView = async (record: Approval) => {
     // 전체 화면 로딩 표시
@@ -521,7 +534,10 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           <Select
             value={searchType}
             style={{ width: 120 }}
-            onChange={(value) => setSearchType(value)}
+            onChange={(value) => {
+              setSearchType(value);
+              setPagination((prev) => ({ ...prev, current: 1 }));
+            }}
             options={[
               { value: "sender", label: "송신자" },
               { value: "receiver", label: "수신자" },
@@ -540,9 +556,14 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           rowKey="id"
           loading={loading}
           pagination={{
-            total: approvals.length,
-            pageSize: 10,
-            current: 1,
+            ...pagination,
+            onChange: (page, pageSize) => {
+              setPagination((prev) => ({
+                ...prev,
+                current: page,
+                pageSize: pageSize,
+              }));
+            },
           }}
         />
       </div>
