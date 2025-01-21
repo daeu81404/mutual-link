@@ -11,6 +11,7 @@ import {
   Row,
   Col,
   Statistic,
+  Select,
 } from "antd";
 import { useState, useEffect } from "react";
 import type { ColumnsType } from "antd/es/table";
@@ -214,6 +215,7 @@ const DoctorList = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [form] = Form.useForm();
+  const [searchType, setSearchType] = useState("name");
 
   useEffect(() => {
     const initActor = async () => {
@@ -493,7 +495,20 @@ const DoctorList = () => {
           gap: 8,
         }}
       >
-        <span>의사명</span>
+        <Select
+          defaultValue="name"
+          style={{ width: 120 }}
+          onChange={(value) => {
+            setSearchType(value);
+            setPagination((prev) => ({ ...prev, current: 1 }));
+          }}
+          options={[
+            { value: "name", label: "의사명" },
+            { value: "email", label: "이메일" },
+            { value: "phone", label: "휴대폰" },
+            { value: "hospital", label: "병원" },
+          ]}
+        />
         <Search
           placeholder="검색어를 입력하세요"
           style={{ width: 300 }}
