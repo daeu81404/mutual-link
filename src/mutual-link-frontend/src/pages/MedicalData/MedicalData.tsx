@@ -28,6 +28,7 @@ import * as eccrypto from "@toruslabs/eccrypto";
 import FileViewerModal from "@/components/FileViewerModal";
 import JSZip from "jszip";
 import { MedicalDataCache } from "@/utils/indexedDB";
+import DoctorInfoModal from "@/components/DoctorInfoModal";
 
 const { Search } = Input;
 
@@ -43,7 +44,15 @@ interface BackendApproval {
   title: string;
   description: string;
   fromDoctor: string;
+  fromEmail: string;
+  fromHospital: string;
+  fromDepartment: string;
+  fromPhone: string;
   toDoctor: string;
+  toEmail: string;
+  toHospital: string;
+  toDepartment: string;
+  toPhone: string;
   cid: string;
   encryptedAesKeyForSender: string;
   encryptedAesKeyForReceiver: string;
@@ -78,7 +87,15 @@ interface Approval {
   title: string;
   description: string;
   fromDoctor: string;
+  fromEmail: string;
+  fromHospital: string;
+  fromDepartment: string;
+  fromPhone: string;
   toDoctor: string;
+  toEmail: string;
+  toHospital: string;
+  toDepartment: string;
+  toPhone: string;
   cid: string;
   status: string;
   encryptedAesKeyForSender: string;
@@ -186,6 +203,14 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     []
   );
   const [relatedApprovals, setRelatedApprovals] = useState<Approval[]>([]);
+  const [selectedDoctorInfo, setSelectedDoctorInfo] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    hospital: string;
+    department: string;
+  } | null>(null);
+  const [doctorInfoModalVisible, setDoctorInfoModalVisible] = useState(false);
 
   useEffect(() => {
     const initActor = async () => {
@@ -233,14 +258,22 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
 
         const formattedApprovals = result.items.map(
           (approval: BackendApproval) => ({
-            id: Number(approval.id.toString()),
-            date: Number(approval.date.toString()),
+            id: Number(approval.id),
+            date: Number(approval.date),
             phone: approval.phone,
             patientName: approval.patientName,
             title: approval.title,
             description: approval.description,
             fromDoctor: approval.fromDoctor,
+            fromEmail: approval.fromEmail || "",
+            fromHospital: approval.fromHospital || "",
+            fromDepartment: approval.fromDepartment || "",
+            fromPhone: approval.fromPhone || "",
             toDoctor: approval.toDoctor,
+            toEmail: approval.toEmail || "",
+            toHospital: approval.toHospital || "",
+            toDepartment: approval.toDepartment || "",
+            toPhone: approval.toPhone || "",
             cid: approval.cid,
             status: approval.status,
             encryptedAesKeyForSender: approval.encryptedAesKeyForSender,
@@ -792,6 +825,17 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     }
   };
 
+  const handleDoctorClick = (record: Approval, isFromDoctor: boolean) => {
+    setSelectedDoctorInfo({
+      name: isFromDoctor ? record.fromDoctor : record.toDoctor,
+      email: isFromDoctor ? record.fromEmail : record.toEmail,
+      phone: isFromDoctor ? record.fromPhone : record.toPhone,
+      hospital: isFromDoctor ? record.fromHospital : record.toHospital,
+      department: isFromDoctor ? record.fromDepartment : record.toDepartment,
+    });
+    setDoctorInfoModalVisible(true);
+  };
+
   const columns: ColumnsType<Approval> = [
     {
       title: "No",
@@ -826,14 +870,28 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       title: "송신자",
       key: "sender",
       width: 200,
-      render: (_: unknown, record: Approval) => <>{record.fromDoctor}</>,
+      render: (_: unknown, record: Approval) => (
+        <div
+          style={{ cursor: "pointer", color: "#1890ff" }}
+          onClick={() => handleDoctorClick(record, true)}
+        >
+          {record.fromDoctor}
+        </div>
+      ),
       hidden: type === "send",
     },
     {
       title: "수신자",
       key: "receiver",
       width: 200,
-      render: (_: unknown, record: Approval) => <>{record.toDoctor}</>,
+      render: (_: unknown, record: Approval) => (
+        <div
+          style={{ cursor: "pointer", color: "#1890ff" }}
+          onClick={() => handleDoctorClick(record, false)}
+        >
+          {record.toDoctor}
+        </div>
+      ),
       hidden: type === "receive",
     },
     {
@@ -1276,6 +1334,14 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           }))}
         />
       </Modal>
+      <DoctorInfoModal
+        visible={doctorInfoModalVisible}
+        onClose={() => {
+          setDoctorInfoModalVisible(false);
+          setSelectedDoctorInfo(null);
+        }}
+        doctor={selectedDoctorInfo}
+      />
     </>
   );
 };

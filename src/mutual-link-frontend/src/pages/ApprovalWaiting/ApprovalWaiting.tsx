@@ -5,6 +5,7 @@ import { Actor, HttpAgent } from "@dfinity/agent";
 import { idlFactory } from "../../../../declarations/mutual-link-backend/mutual-link-backend.did.js";
 import { useAuth } from "@/contexts/AuthContext";
 import { CopyOutlined } from "@ant-design/icons";
+import DoctorInfoModal from "@/components/DoctorInfoModal";
 
 const { Search } = Input;
 
@@ -23,6 +24,14 @@ interface BackendApproval {
   status: string;
   originalApprovalId: bigint | null;
   transferredDoctors: string[];
+  fromEmail?: string;
+  fromHospital?: string;
+  fromDepartment?: string;
+  fromPhone?: string;
+  toEmail?: string;
+  toHospital?: string;
+  toDepartment?: string;
+  toPhone?: string;
 }
 
 interface Approval {
@@ -33,7 +42,15 @@ interface Approval {
   title: string;
   description: string;
   fromDoctor: string;
+  fromEmail: string;
+  fromHospital: string;
+  fromDepartment: string;
+  fromPhone: string;
   toDoctor: string;
+  toEmail: string;
+  toHospital: string;
+  toDepartment: string;
+  toPhone: string;
   cid: string;
   status: string;
   encryptedAesKeyForSender: string;
@@ -53,6 +70,14 @@ const ApprovalWaiting = () => {
     pageSize: 10,
     total: 0,
   });
+  const [selectedDoctorInfo, setSelectedDoctorInfo] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    hospital: string;
+    department: string;
+  } | null>(null);
+  const [doctorInfoModalVisible, setDoctorInfoModalVisible] = useState(false);
 
   useEffect(() => {
     const initActor = async () => {
@@ -107,7 +132,15 @@ const ApprovalWaiting = () => {
             title: approval.title,
             description: approval.description,
             fromDoctor: approval.fromDoctor,
+            fromEmail: approval.fromEmail || "",
+            fromHospital: approval.fromHospital || "",
+            fromDepartment: approval.fromDepartment || "",
+            fromPhone: approval.fromPhone || "",
             toDoctor: approval.toDoctor,
+            toEmail: approval.toEmail || "",
+            toHospital: approval.toHospital || "",
+            toDepartment: approval.toDepartment || "",
+            toPhone: approval.toPhone || "",
             cid: approval.cid,
             status: approval.status,
             encryptedAesKeyForSender: approval.encryptedAesKeyForSender,
@@ -135,13 +168,24 @@ const ApprovalWaiting = () => {
     fetchApprovals();
   }, [userInfo?.name, searchRole, pagination.current, pagination.pageSize]);
 
+  const handleDoctorClick = (record: Approval, isFromDoctor: boolean) => {
+    setSelectedDoctorInfo({
+      name: isFromDoctor ? record.fromDoctor : record.toDoctor,
+      email: isFromDoctor ? record.fromEmail : record.toEmail,
+      phone: isFromDoctor ? record.fromPhone : record.toPhone,
+      hospital: isFromDoctor ? record.fromHospital : record.toHospital,
+      department: isFromDoctor ? record.fromDepartment : record.toDepartment,
+    });
+    setDoctorInfoModalVisible(true);
+  };
+
   const columns: ColumnsType<Approval> = [
     { title: "No", dataIndex: "id", key: "id", width: 70 },
     {
       title: "생성일",
       key: "date",
       width: 120,
-      render: (_, record) => {
+      render: (_: unknown, record: Approval) => {
         const date = new Date(Number(record.date) / 1000000); // nanoseconds to milliseconds
         return date.toLocaleString("ko-KR", {
           year: "2-digit",
@@ -164,14 +208,28 @@ const ApprovalWaiting = () => {
       title: "송신자",
       key: "sender",
       width: 200,
-      render: (_: unknown, record: Approval) => <>{record.fromDoctor}</>,
+      render: (_: unknown, record: Approval) => (
+        <div
+          style={{ cursor: "pointer", color: "#1890ff" }}
+          onClick={() => handleDoctorClick(record, true)}
+        >
+          {record.fromDoctor}
+        </div>
+      ),
       hidden: searchRole === "sender",
     },
     {
       title: "수신자",
       key: "receiver",
       width: 200,
-      render: (_: unknown, record: Approval) => <>{record.toDoctor}</>,
+      render: (_: unknown, record: Approval) => (
+        <div
+          style={{ cursor: "pointer", color: "#1890ff" }}
+          onClick={() => handleDoctorClick(record, false)}
+        >
+          {record.toDoctor}
+        </div>
+      ),
       hidden: searchRole === "receiver",
     },
     {
@@ -208,7 +266,7 @@ const ApprovalWaiting = () => {
   ].filter((column) => !column.hidden);
 
   return (
-    <div>
+    <>
       <div style={{ marginBottom: 16, display: "flex", gap: 8 }}>
         <Select
           value={searchRole}
@@ -244,7 +302,15 @@ const ApprovalWaiting = () => {
           },
         }}
       />
-    </div>
+      <DoctorInfoModal
+        visible={doctorInfoModalVisible}
+        onClose={() => {
+          setDoctorInfoModalVisible(false);
+          setSelectedDoctorInfo(null);
+        }}
+        doctor={selectedDoctorInfo}
+      />
+    </>
   );
 };
 
