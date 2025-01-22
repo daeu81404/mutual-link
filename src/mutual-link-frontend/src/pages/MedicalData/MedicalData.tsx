@@ -7,6 +7,8 @@ import {
   message,
   Modal,
   Timeline,
+  Card,
+  Tag,
 } from "antd";
 import {
   DownloadOutlined,
@@ -14,6 +16,7 @@ import {
   EyeOutlined,
   SwapOutlined,
   HistoryOutlined,
+  ArrowRightOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useState, useEffect } from "react";
@@ -63,6 +66,8 @@ interface TransferHistory {
   toPhone: string;
   date: number;
   originalApprovalId: number;
+  status?: string;
+  description?: string;
 }
 
 interface Approval {
@@ -1074,7 +1079,20 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         </div>
       </Modal>
       <Modal
-        title="진료 이력 조회"
+        title={
+          <div
+            style={{
+              borderBottom: "1px solid #f0f0f0",
+              padding: "16px 24px",
+              margin: "0 -24px 16px",
+            }}
+          >
+            <h3 style={{ margin: 0, color: "#1890ff" }}>진료 이력 조회</h3>
+            <p style={{ margin: "8px 0 0", color: "#666", fontSize: "14px" }}>
+              {selectedRecord?.patientName} 환자의 진료 이력입니다.
+            </p>
+          </div>
+        }
         open={historyModalVisible}
         onCancel={() => {
           setHistoryModalVisible(false);
@@ -1082,69 +1100,173 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           setDoctors([]);
         }}
         footer={null}
-        width={600}
+        width={800}
+        style={{ top: 20 }}
       >
-        <div>
-          <h4>진료 이력</h4>
-          <Timeline>
-            {selectedHistories.map((history) => (
-              <Timeline.Item key={history.id}>
-                <div style={{ marginBottom: 4 }}>
-                  <span style={{ marginLeft: 8 }}>
-                    {new Date(history.date).toLocaleString("ko-KR", {
-                      year: "2-digit",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
+        <Timeline
+          mode="left"
+          style={{
+            padding: "20px 40px",
+            maxHeight: "calc(100vh - 250px)",
+            overflowY: "auto",
+          }}
+          items={selectedHistories?.map((history, index) => ({
+            label: (
+              <div
+                style={{
+                  padding: "8px 16px",
+                  background: "#f5f5f5",
+                  borderRadius: "4px",
+                  minWidth: "200px",
+                }}
+              >
+                <div style={{ fontSize: "14px", color: "#666" }}>
+                  {new Date(Number(history.date)).toLocaleString("ko-KR", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  })}
                 </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    marginBottom: 8,
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div>
-                      <strong>{history.fromDoctor}</strong>
-                    </div>
-                    <div style={{ fontSize: "0.9em", color: "#666" }}>
-                      {history.fromHospital} {history.fromDepartment}
-                    </div>
-                    <div style={{ fontSize: "0.9em", color: "#666" }}>
-                      {history.fromEmail}
-                    </div>
-                    {history.fromPhone && (
-                      <div style={{ fontSize: "0.9em", color: "#666" }}>
-                        {history.fromPhone}
-                      </div>
+              </div>
+            ),
+            children: (
+              <Card
+                style={{
+                  marginBottom: "16px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                  borderRadius: "8px",
+                }}
+                bodyStyle={{ padding: "16px" }}
+              >
+                <div style={{ marginBottom: "16px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: "bold",
+                        marginRight: "8px",
+                      }}
+                    >
+                      {index === 0 ? "최초 진료" : "진료 기록 전송"}
+                    </span>
+                    {history.status === "pending" && (
+                      <Tag color="processing">승인 대기중</Tag>
+                    )}
+                    {history.status === "approved" && (
+                      <Tag color="success">승인됨</Tag>
+                    )}
+                    {history.status === "rejected" && (
+                      <Tag color="error">거절됨</Tag>
                     )}
                   </div>
-                  <div style={{ margin: "0 12px" }}>→</div>
-                  <div style={{ flex: 1 }}>
-                    <div>
-                      <strong>{history.toDoctor}</strong>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      color: "#666",
+                      fontSize: "14px",
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      {history.fromHospital && (
+                        <div style={{ marginBottom: "4px" }}>
+                          <strong>보낸 병원:</strong> {history.fromHospital}
+                          {history.fromDepartment &&
+                            ` (${history.fromDepartment})`}
+                        </div>
+                      )}
+                      {history.fromDoctor && (
+                        <div>
+                          <strong>보낸 의사:</strong> {history.fromDoctor}
+                          {history.fromEmail && (
+                            <>
+                              <br />
+                              <span style={{ fontSize: "13px", color: "#888" }}>
+                                {history.fromEmail}
+                              </span>
+                            </>
+                          )}
+                          {history.fromPhone && (
+                            <>
+                              <br />
+                              <span style={{ fontSize: "13px", color: "#888" }}>
+                                {history.fromPhone}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ fontSize: "0.9em", color: "#666" }}>
-                      {history.toHospital} {history.toDepartment}
+                    <ArrowRightOutlined
+                      style={{ margin: "0 16px", color: "#1890ff" }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      {history.toHospital && (
+                        <div style={{ marginBottom: "4px" }}>
+                          <strong>받은 병원:</strong> {history.toHospital}
+                          {history.toDepartment && ` (${history.toDepartment})`}
+                        </div>
+                      )}
+                      {history.toDoctor && (
+                        <div>
+                          <strong>받은 의사:</strong> {history.toDoctor}
+                          {history.toEmail && (
+                            <>
+                              <br />
+                              <span style={{ fontSize: "13px", color: "#888" }}>
+                                {history.toEmail}
+                              </span>
+                            </>
+                          )}
+                          {history.toPhone && (
+                            <>
+                              <br />
+                              <span style={{ fontSize: "13px", color: "#888" }}>
+                                {history.toPhone}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ fontSize: "0.9em", color: "#666" }}>
-                      {history.toEmail}
-                    </div>
-                    {history.toPhone && (
-                      <div style={{ fontSize: "0.9em", color: "#666" }}>
-                        {history.toPhone}
-                      </div>
-                    )}
                   </div>
                 </div>
-              </Timeline.Item>
-            ))}
-          </Timeline>
-        </div>
+                {history.description && (
+                  <div
+                    style={{
+                      background: "#f9f9f9",
+                      padding: "12px",
+                      borderRadius: "4px",
+                      fontSize: "14px",
+                      color: "#333",
+                    }}
+                  >
+                    <div
+                      style={{
+                        marginBottom: "8px",
+                        fontWeight: "bold",
+                        color: "#666",
+                      }}
+                    >
+                      소견
+                    </div>
+                    {history.description}
+                  </div>
+                )}
+              </Card>
+            ),
+            color: index === 0 ? "#1890ff" : "#666",
+          }))}
+        />
       </Modal>
     </>
   );
