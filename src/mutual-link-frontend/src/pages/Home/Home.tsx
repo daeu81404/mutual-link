@@ -158,40 +158,49 @@ export default function Home() {
       </Header>
       <Layout>
         <Sider
-          breakpoint="lg"
-          collapsedWidth="0"
-          width={250}
-          theme="light"
+          trigger={null}
+          collapsible
           collapsed={collapsed}
-          onCollapse={setCollapsed}
           style={{
+            background: "var(--background-color)",
             boxShadow: "2px 0 8px rgba(0,0,0,0.1)",
-            height: "calc(100vh - 64px)",
-            position: "sticky",
-            left: 0,
-            top: 64,
-            overflow: "auto",
           }}
+          width={250}
         >
           <Menu
             mode="inline"
             selectedKeys={[getSelectedKey()]}
-            items={menuItems}
             onClick={handleMenuClick}
-            style={{ padding: "16px 0" }}
+            style={{
+              height: "100%",
+              borderRight: 0,
+              background: "var(--background-color)",
+            }}
+            items={menuItems}
+            theme="light"
+            className="sidebar-menu"
           />
         </Sider>
-        <Content
+        <Layout
           style={{
-            padding: 24,
-            background: token.colorBgContainer,
-            margin: "24px",
-            borderRadius: token.borderRadiusLG,
-            minHeight: 280,
+            padding: "24px",
+            background: "var(--background-color)",
+            minHeight: "calc(100vh - 64px)",
           }}
         >
-          <Outlet />
-        </Content>
+          <Content
+            style={{
+              padding: 24,
+              margin: 0,
+              background: "#fff",
+              borderRadius: "8px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              minHeight: 280,
+            }}
+          >
+            <Outlet />
+          </Content>
+        </Layout>
       </Layout>
       <UserInfoModal
         visible={userInfoModalVisible}

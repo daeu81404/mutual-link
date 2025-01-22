@@ -693,6 +693,7 @@ export default function FileViewerModal({
       width="100%"
       bodyStyle={{ padding: 0, overflow: "auto" }}
       zIndex={1000}
+      className="file-viewer-modal"
     >
       <div
         style={{

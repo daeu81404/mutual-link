@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mutual Link</title>
+    <style>
+      :root {
+        --primary-color: #2c5282;
+        --secondary-color: #4299e1;
+        --background-color: #f7fafc;
+        --text-color: #2d3748;
+        --border-color: #e2e8f0;
+        --hover-color: #3182ce;
+        --menu-item-color: #4a5568;
+        --menu-item-active-bg: #ebf8ff;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--background-color);
+        color: var(--text-color);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+      }
+
+      .sidebar-menu .ant-menu-item {
+        color: var(--menu-item-color);
+        font-weight: 500;
+        font-size: 15px;
+        margin: 4px 0;
+        border-radius: 6px;
+      }
+
+      .sidebar-menu .ant-menu-item:hover {
+        color: var(--primary-color);
+        background-color: var(--menu-item-active-bg);
+      }
+
+      .sidebar-menu .ant-menu-item-selected {
+        background-color: var(--menu-item-active-bg) !important;
+        color: var(--primary-color);
+        font-weight: 600;
+      }
+
+      .sidebar-menu .ant-menu-item .anticon {
+        font-size: 18px;
+      }
+
+      .sidebar-menu .ant-menu-submenu-title {
+        color: var(--menu-item-color);
+        font-weight: 500;
+      }
+
+      .sidebar-menu .ant-menu-submenu-title:hover {
+        color: var(--primary-color);
+      }
+
+      .ant-modal {
+        padding-bottom: 0;
+      }
+
+      .ant-modal-content {
+        border-radius: 12px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+      }
+
+      .ant-modal-header {
+        border-radius: 12px 12px 0 0;
+        background-color: var(--background-color);
+        border-bottom: 1px solid var(--border-color);
+        padding: 20px 24px;
+      }
+
+      .ant-modal-title {
+        color: var(--primary-color);
+        font-weight: 600;
+        font-size: 18px;
+      }
+
+      .ant-modal-close {
+        color: var(--text-color);
+      }
+
+      .ant-modal-body {
+        padding: 24px;
+      }
+
+      .ant-modal-footer {
+        border-top: 1px solid var(--border-color);
+        padding: 16px 24px;
+      }
+
+      .ant-descriptions-item-label {
+        color: var(--text-color);
+        font-weight: 500;
+        background-color: var(--background-color);
+        padding: 12px 16px !important;
+      }
+
+      .ant-descriptions-item-content {
+        color: var(--text-color);
+        padding: 12px 16px !important;
+      }
+
+      .ant-timeline-item-head {
+        width: 16px;
+        height: 16px;
+      }
+
+      .ant-timeline-item-content {
+        padding-bottom: 24px;
+      }
+
+      .file-viewer-modal .ant-tabs-nav {
+        margin-bottom: 16px;
+        background-color: var(--background-color);
+        padding: 8px 16px;
+        border-radius: 8px;
+      }
+
+      .file-viewer-modal .ant-tabs-tab {
+        padding: 8px 16px;
+        margin: 0 4px;
+      }
+
+      .file-viewer-modal .ant-tabs-tab-active {
+        background-color: white;
+        border-radius: 6px;
+      }
+
+      .ant-btn {
+        border-radius: 6px;
+        height: 36px;
+        padding: 0 16px;
+        font-weight: 500;
+      }
+
+      .ant-btn-primary {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+      }
+
+      .ant-btn-primary:hover {
+        background-color: var(--hover-color);
+        border-color: var(--hover-color);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
