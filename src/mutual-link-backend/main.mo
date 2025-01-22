@@ -59,8 +59,14 @@ actor {
     id: Nat;
     fromDoctor: Text;
     fromEmail: Text;
+    fromHospital: Text;
+    fromDepartment: Text;
+    fromPhone: Text;
     toDoctor: Text;
     toEmail: Text;
+    toHospital: Text;
+    toDepartment: Text;
+    toPhone: Text;
     date: Int;
     originalApprovalId: Nat;
   }) : async Result.Result<(), Text> {
@@ -68,8 +74,14 @@ actor {
       id = history.id;
       fromDoctor = history.fromDoctor;
       fromEmail = history.fromEmail;
+      fromHospital = history.fromHospital;
+      fromDepartment = history.fromDepartment;
+      fromPhone = history.fromPhone;
       toDoctor = history.toDoctor;
       toEmail = history.toEmail;
+      toHospital = history.toHospital;
+      toDepartment = history.toDepartment;
+      toPhone = history.toPhone;
       date = history.date;
       originalApprovalId = history.originalApprovalId;
     };

@@ -53,8 +53,14 @@ interface TransferHistory {
   id: number;
   fromDoctor: string;
   fromEmail: string;
+  fromHospital: string;
+  fromDepartment: string;
+  fromPhone: string;
   toDoctor: string;
   toEmail: string;
+  toHospital: string;
+  toDepartment: string;
+  toPhone: string;
   date: number;
   originalApprovalId: number;
 }
@@ -597,12 +603,18 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         title: selectedRecord.title,
         description: selectedRecord.description || "",
         fromDoctor: userInfo?.name || "",
+        fromHospital: userInfo?.hospital || "", // 송신자 병원 정보 추가
+        fromDepartment: userInfo?.department || "", // 송신자 부서 정보 추가
+        fromPhone: userInfo?.phone || "", // 송신자 전화번호 추가
         toDoctor: selectedDoctor?.name || "",
+        toHospital: selectedDoctor?.hospital || "", // 수신자 병원 정보 추가
+        toDepartment: selectedDoctor?.department || "", // 수신자 부서 정보 추가
+        toPhone: selectedDoctor?.phone || "", // 수신자 전화번호 추가
         cid: selectedRecord.cid,
         encryptedAesKeyForSender: encryptedAesKeyForSenderString,
         encryptedAesKeyForReceiver: encryptedAesKeyForReceiverString,
         status: "pending",
-        originalApprovalId: [BigInt(originalId)], // opt nat 타입을 위해 배열로 감싸기
+        originalApprovalId: [BigInt(originalId)],
         transferredDoctors: [userInfo?.name || ""],
       };
 
@@ -613,8 +625,14 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         id: BigInt(0),
         fromDoctor: userInfo.name,
         fromEmail: userInfo.email,
+        fromHospital: userInfo.hospital || "",
+        fromDepartment: userInfo.department || "",
+        fromPhone: userInfo.phone || "", // userInfo의 전화번호 사용
         toDoctor: selectedDoctor.name,
         toEmail: selectedDoctor.email,
+        toHospital: selectedDoctor.hospital || "",
+        toDepartment: selectedDoctor.department || "",
+        toPhone: selectedDoctor.phone || "",
         date: BigInt(Date.now() * 1000000),
         originalApprovalId: BigInt(originalId),
       });
@@ -669,6 +687,9 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   // 이관 히스토리 조회
   const handleHistoryClick = async (approvalId: number) => {
     try {
+      // 의사 목록 먼저 로드
+      await fetchDoctors(1, 100); // 충분한 수의 의사 목록을 가져옴
+
       // 현재 승인 정보 조회
       const approvalResult = await backendActor.getApproval(BigInt(approvalId));
       console.log("현재 승인 정보:", approvalResult);
@@ -711,7 +732,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       console.log("조회된 이관 히스토리:", histories);
 
       const formattedHistories = histories.map((h: any) => {
-        console.log("개별 히스토리 날짜:", h.date, typeof h.date);
+        console.log("개별 히스토리 데이터:", h); // 디버깅을 위한 로그 추가
         const historyDate =
           typeof h.date === "bigint"
             ? Number(h.date.toString()) / 1000000
@@ -720,8 +741,14 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           id: Number(h.id),
           fromDoctor: h.fromDoctor,
           fromEmail: h.fromEmail,
+          fromHospital: h.fromHospital || "",
+          fromDepartment: h.fromDepartment || "",
+          fromPhone: h.fromPhone || "",
           toDoctor: h.toDoctor,
           toEmail: h.toEmail,
+          toHospital: h.toHospital || "",
+          toDepartment: h.toDepartment || "",
+          toPhone: h.toPhone || "",
           date: historyDate,
           originalApprovalId: Number(h.originalApprovalId),
         };
@@ -732,8 +759,14 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         id: originalId,
         fromDoctor: originalApprovalData.fromDoctor || "",
         fromEmail: "",
+        fromHospital: originalApprovalData.fromHospital || "",
+        fromDepartment: originalApprovalData.fromDepartment || "",
+        fromPhone: originalApprovalData.fromPhone || "", // 백엔드에서 받은 전화번호 사용
         toDoctor: originalApprovalData.toDoctor || "",
         toEmail: "",
+        toHospital: originalApprovalData.toHospital || "",
+        toDepartment: originalApprovalData.toDepartment || "",
+        toPhone: originalApprovalData.toPhone || "", // 백엔드에서 받은 전화번호 사용
         date:
           typeof originalApprovalData.date === "bigint"
             ? Number(originalApprovalData.date.toString()) / 1000000
@@ -1067,13 +1100,45 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
                     })}
                   </span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    marginBottom: 8,
+                  }}
+                >
                   <div style={{ flex: 1 }}>
-                    <strong>{history.fromDoctor}</strong>
+                    <div>
+                      <strong>{history.fromDoctor}</strong>
+                    </div>
+                    <div style={{ fontSize: "0.9em", color: "#666" }}>
+                      {history.fromHospital} {history.fromDepartment}
+                    </div>
+                    <div style={{ fontSize: "0.9em", color: "#666" }}>
+                      {history.fromEmail}
+                    </div>
+                    {history.fromPhone && (
+                      <div style={{ fontSize: "0.9em", color: "#666" }}>
+                        {history.fromPhone}
+                      </div>
+                    )}
                   </div>
                   <div style={{ margin: "0 12px" }}>→</div>
                   <div style={{ flex: 1 }}>
-                    <strong>{history.toDoctor}</strong>
+                    <div>
+                      <strong>{history.toDoctor}</strong>
+                    </div>
+                    <div style={{ fontSize: "0.9em", color: "#666" }}>
+                      {history.toHospital} {history.toDepartment}
+                    </div>
+                    <div style={{ fontSize: "0.9em", color: "#666" }}>
+                      {history.toEmail}
+                    </div>
+                    {history.toPhone && (
+                      <div style={{ fontSize: "0.9em", color: "#666" }}>
+                        {history.toPhone}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Timeline.Item>

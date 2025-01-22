@@ -377,18 +377,24 @@ const DoctorList = () => {
       // 5. ApprovalManager에 데이터 저장
       const approvalData = {
         id: BigInt(0),
-        date: BigInt(Date.now()),
-        phone: values.phone,
-        patientName: values.patientName,
-        title: values.title,
-        description: values.description || "",
+        date: BigInt(Date.now() * 1000000),
+        phone: form.getFieldValue("phone"),
+        patientName: form.getFieldValue("patientName"),
+        title: form.getFieldValue("title"),
+        description: form.getFieldValue("description") || "",
         fromDoctor: userInfo?.name || "",
+        fromHospital: userInfo?.hospital || "",
+        fromDepartment: userInfo?.department || "",
+        fromPhone: userInfo?.phone || "",
         toDoctor: selectedDoctor?.name || "",
-        cid,
-        encryptedAesKeyForSender,
-        encryptedAesKeyForReceiver,
+        toHospital: selectedDoctor?.hospital || "",
+        toDepartment: selectedDoctor?.department || "",
+        toPhone: selectedDoctor?.phone || "",
+        cid: cid,
+        encryptedAesKeyForSender: encryptedAesKeyForSender,
+        encryptedAesKeyForReceiver: encryptedAesKeyForReceiver,
         status: "pending",
-        originalApprovalId: [], // opt nat 타입을 위해 빈 배열로 설정
+        originalApprovalId: [],
         transferredDoctors: [userInfo?.name || ""],
       };
 
@@ -402,15 +408,16 @@ const DoctorList = () => {
 
       try {
         const result = await backendActor.createApproval(approvalData);
-        if ("ok" in result) {
-          message.success("진료 기록이 성공적으로 전송되었습니다.");
-          handleModalCancel();
+        if (result) {
+          message.success("승인 요청이 성공적으로 생성되었습니다.");
+          setIsModalOpen(false);
+          form.resetFields();
         } else {
-          message.error("진료 기록 전송에 실패했습니다: " + result.err);
+          message.error("승인 요청 생성에 실패했습니다.");
         }
       } catch (error) {
         console.error("승인 요청 생성 실패:", error);
-        message.error("진료 기록 전송에 실패했습니다.");
+        message.error(`승인 요청 생성 실패: ${error}`);
       }
     } catch (error) {
       console.error("업로드 실패:", error);

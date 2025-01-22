@@ -20,7 +20,13 @@ module {
         title: Text;
         description: Text;
         fromDoctor: Text;
+        fromHospital: Text;  // 송신자 병원 정보 추가
+        fromDepartment: Text;  // 송신자 부서 정보 추가
+        fromPhone: Text;  // 송신자 전화번호 추가
         toDoctor: Text;
+        toHospital: Text;  // 수신자 병원 정보 추가
+        toDepartment: Text;  // 수신자 부서 정보 추가
+        toPhone: Text;  // 수신자 전화번호 추가
         cid: Text;
         encryptedAesKeyForSender: Text;
         encryptedAesKeyForReceiver: Text;
@@ -33,8 +39,14 @@ module {
         id: Nat;
         fromDoctor: Text;
         fromEmail: Text;
+        fromHospital: Text;
+        fromDepartment: Text;
+        fromPhone: Text;
         toDoctor: Text;
         toEmail: Text;
+        toHospital: Text;
+        toDepartment: Text;
+        toPhone: Text;
         date: Int;
         originalApprovalId: Nat;
     };
@@ -62,7 +74,13 @@ module {
                 title = approval.title;
                 description = approval.description;
                 fromDoctor = approval.fromDoctor;
+                fromHospital = approval.fromHospital;
+                fromDepartment = approval.fromDepartment;
+                fromPhone = approval.fromPhone;
                 toDoctor = approval.toDoctor;
+                toHospital = approval.toHospital;
+                toDepartment = approval.toDepartment;
+                toPhone = approval.toPhone;
                 cid = approval.cid;
                 encryptedAesKeyForSender = approval.encryptedAesKeyForSender;
                 encryptedAesKeyForReceiver = approval.encryptedAesKeyForReceiver;
@@ -87,7 +105,13 @@ module {
                         title = approval.title;
                         description = approval.description;
                         fromDoctor = approval.fromDoctor;
+                        fromHospital = approval.fromHospital;
+                        fromDepartment = approval.fromDepartment;
+                        fromPhone = approval.fromPhone;
                         toDoctor = approval.toDoctor;
+                        toHospital = approval.toHospital;
+                        toDepartment = approval.toDepartment;
+                        toPhone = approval.toPhone;
                         cid = approval.cid;
                         encryptedAesKeyForSender = approval.encryptedAesKeyForSender;
                         encryptedAesKeyForReceiver = approval.encryptedAesKeyForReceiver;
@@ -181,8 +205,14 @@ module {
                 id = nextHistoryId;
                 fromDoctor = history.fromDoctor;
                 fromEmail = history.fromEmail;
+                fromHospital = history.fromHospital;
+                fromDepartment = history.fromDepartment;
+                fromPhone = history.fromPhone;
                 toDoctor = history.toDoctor;
                 toEmail = history.toEmail;
+                toHospital = history.toHospital;
+                toDepartment = history.toDepartment;
+                toPhone = history.toPhone;
                 date = history.date;
                 originalApprovalId = history.originalApprovalId;
             };
@@ -240,7 +270,13 @@ module {
                             title = approval.title;
                             description = approval.description;
                             fromDoctor = fromDoctor;
+                            fromHospital = approval.fromHospital;
+                            fromDepartment = approval.fromDepartment;
+                            fromPhone = approval.fromPhone;
                             toDoctor = toDoctor;
+                            toHospital = approval.toHospital;
+                            toDepartment = approval.toDepartment;
+                            toPhone = approval.toPhone;
                             cid = approval.cid;
                             encryptedAesKeyForSender = approval.encryptedAesKeyForSender;
                             encryptedAesKeyForReceiver = approval.encryptedAesKeyForReceiver;

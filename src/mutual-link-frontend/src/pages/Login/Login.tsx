@@ -69,6 +69,7 @@ const Login = () => {
           name: doctor.name,
           role: doctor.role,
           email: doctor.email,
+          phone: doctor.phone,
           publicKey: result.publicKey || undefined,
           privateKey: result.privateKey || undefined,
           id: doctor.id.toString(),

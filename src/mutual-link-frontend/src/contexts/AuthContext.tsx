@@ -16,6 +16,7 @@ interface AuthContextType {
     name: string;
     role?: "admin" | "user";
     email: string;
+    phone: string;
     publicKey?: string;
     privateKey?: string;
     id?: string;
