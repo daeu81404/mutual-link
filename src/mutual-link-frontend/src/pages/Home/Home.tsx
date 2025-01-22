@@ -19,6 +19,7 @@ import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { regularMenuItems, adminMenuItems } from "@/constants/menuItems";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWeb3Auth } from "@/contexts/Web3AuthContext";
+import UserInfoModal from "@/components/UserInfoModal";
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -26,6 +27,7 @@ const { useToken } = theme;
 
 export default function Home() {
   const [collapsed, setCollapsed] = useState(false);
+  const [userInfoModalVisible, setUserInfoModalVisible] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { logout: authLogout, userInfo } = useAuth();
@@ -134,7 +136,10 @@ export default function Home() {
               style={{ width: 48, height: 48 }}
             />
           </Badge>
-          <Space>
+          <Space
+            style={{ cursor: "pointer" }}
+            onClick={() => setUserInfoModalVisible(true)}
+          >
             <Avatar
               style={{ backgroundColor: token.colorPrimary }}
               icon={<UserOutlined />}
@@ -188,6 +193,11 @@ export default function Home() {
           <Outlet />
         </Content>
       </Layout>
+      <UserInfoModal
+        visible={userInfoModalVisible}
+        onClose={() => setUserInfoModalVisible(false)}
+        userInfo={userInfo}
+      />
     </Layout>
   );
 }
