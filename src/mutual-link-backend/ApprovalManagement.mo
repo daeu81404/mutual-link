@@ -20,13 +20,15 @@ module {
         title: Text;
         description: Text;
         fromDoctor: Text;
-        fromHospital: Text;  // 송신자 병원 정보 추가
-        fromDepartment: Text;  // 송신자 부서 정보 추가
-        fromPhone: Text;  // 송신자 전화번호 추가
+        fromEmail: Text;  // 송신자 이메일 추가
+        fromHospital: Text;
+        fromDepartment: Text;
+        fromPhone: Text;
         toDoctor: Text;
-        toHospital: Text;  // 수신자 병원 정보 추가
-        toDepartment: Text;  // 수신자 부서 정보 추가
-        toPhone: Text;  // 수신자 전화번호 추가
+        toEmail: Text;  // 수신자 이메일 추가
+        toHospital: Text;
+        toDepartment: Text;
+        toPhone: Text;
         cid: Text;
         encryptedAesKeyForSender: Text;
         encryptedAesKeyForReceiver: Text;
@@ -74,10 +76,12 @@ module {
                 title = approval.title;
                 description = approval.description;
                 fromDoctor = approval.fromDoctor;
+                fromEmail = approval.fromEmail;  // 이메일 필드 추가
                 fromHospital = approval.fromHospital;
                 fromDepartment = approval.fromDepartment;
                 fromPhone = approval.fromPhone;
                 toDoctor = approval.toDoctor;
+                toEmail = approval.toEmail;  // 이메일 필드 추가
                 toHospital = approval.toHospital;
                 toDepartment = approval.toDepartment;
                 toPhone = approval.toPhone;
@@ -105,10 +109,12 @@ module {
                         title = approval.title;
                         description = approval.description;
                         fromDoctor = approval.fromDoctor;
+                        fromEmail = approval.fromEmail;  // 이메일 필드 추가
                         fromHospital = approval.fromHospital;
                         fromDepartment = approval.fromDepartment;
                         fromPhone = approval.fromPhone;
                         toDoctor = approval.toDoctor;
+                        toEmail = approval.toEmail;  // 이메일 필드 추가
                         toHospital = approval.toHospital;
                         toDepartment = approval.toDepartment;
                         toPhone = approval.toPhone;
@@ -270,10 +276,12 @@ module {
                             title = approval.title;
                             description = approval.description;
                             fromDoctor = fromDoctor;
+                            fromEmail = approval.fromEmail;  // 이메일 필드 추가
                             fromHospital = approval.fromHospital;
                             fromDepartment = approval.fromDepartment;
                             fromPhone = approval.fromPhone;
                             toDoctor = toDoctor;
+                            toEmail = approval.toEmail;  // 이메일 필드 추가
                             toHospital = approval.toHospital;
                             toDepartment = approval.toDepartment;
                             toPhone = approval.toPhone;

@@ -608,13 +608,15 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         title: selectedRecord.title,
         description: selectedRecord.description || "",
         fromDoctor: userInfo?.name || "",
-        fromHospital: userInfo?.hospital || "", // 송신자 병원 정보 추가
-        fromDepartment: userInfo?.department || "", // 송신자 부서 정보 추가
-        fromPhone: userInfo?.phone || "", // 송신자 전화번호 추가
+        fromEmail: userInfo?.email || "",
+        fromHospital: userInfo?.hospital || "",
+        fromDepartment: userInfo?.department || "",
+        fromPhone: userInfo?.phone || "",
         toDoctor: selectedDoctor?.name || "",
-        toHospital: selectedDoctor?.hospital || "", // 수신자 병원 정보 추가
-        toDepartment: selectedDoctor?.department || "", // 수신자 부서 정보 추가
-        toPhone: selectedDoctor?.phone || "", // 수신자 전화번호 추가
+        toEmail: selectedDoctor?.email || "",
+        toHospital: selectedDoctor?.hospital || "",
+        toDepartment: selectedDoctor?.department || "",
+        toPhone: selectedDoctor?.phone || "",
         cid: selectedRecord.cid,
         encryptedAesKeyForSender: encryptedAesKeyForSenderString,
         encryptedAesKeyForReceiver: encryptedAesKeyForReceiverString,
@@ -763,15 +765,15 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       const initialHistory = {
         id: originalId,
         fromDoctor: originalApprovalData.fromDoctor || "",
-        fromEmail: "",
+        fromEmail: originalApprovalData.fromEmail || "",
         fromHospital: originalApprovalData.fromHospital || "",
         fromDepartment: originalApprovalData.fromDepartment || "",
-        fromPhone: originalApprovalData.fromPhone || "", // 백엔드에서 받은 전화번호 사용
+        fromPhone: originalApprovalData.fromPhone || "",
         toDoctor: originalApprovalData.toDoctor || "",
-        toEmail: "",
+        toEmail: originalApprovalData.toEmail || "",
         toHospital: originalApprovalData.toHospital || "",
         toDepartment: originalApprovalData.toDepartment || "",
-        toPhone: originalApprovalData.toPhone || "", // 백엔드에서 받은 전화번호 사용
+        toPhone: originalApprovalData.toPhone || "",
         date:
           typeof originalApprovalData.date === "bigint"
             ? Number(originalApprovalData.date.toString()) / 1000000
