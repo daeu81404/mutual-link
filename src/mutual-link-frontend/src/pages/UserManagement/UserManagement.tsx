@@ -275,20 +275,83 @@ const UserManagement = () => {
   };
 
   return (
-    <div>
-      <div style={{ marginBottom: 16 }}>
+    <div style={{ padding: "24px" }}>
+      <div className="table-toolbar">
         <Button type="primary" onClick={handleAdd}>
           사용자 추가
         </Button>
       </div>
 
-      <Table columns={columns} dataSource={users} loading={loading} />
+      <Table
+        columns={columns.map((column) => ({
+          ...column,
+          align: column.key === "action" ? "center" : "left",
+          ellipsis: column.key !== "action",
+          render:
+            column.key === "publicKey"
+              ? (publicKey: string) =>
+                  publicKey ? (
+                    <div
+                      className="copyable-text"
+                      onClick={() => {
+                        navigator.clipboard.writeText(publicKey);
+                        message.success(
+                          "Public Key가 클립보드에 복사되었습니다."
+                        );
+                      }}
+                      title={publicKey}
+                    >
+                      <span>{publicKey.substring(0, 15)}...</span>
+                      <CopyOutlined />
+                    </div>
+                  ) : (
+                    <span style={{ color: "#ff4d4f" }}>최초 로그인 대기</span>
+                  )
+              : column.key === "role"
+              ? (role: string) => (
+                  <span
+                    className={`status-tag ${
+                      role === "admin"
+                        ? "status-tag-approved"
+                        : "status-tag-pending"
+                    }`}
+                  >
+                    {role === "admin" ? "관리자" : "일반 사용자"}
+                  </span>
+                )
+              : column.render,
+        }))}
+        dataSource={users}
+        rowKey="id"
+        loading={loading}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showTotal: (total, range) =>
+            `전체 ${total}개 중 ${range[0]}-${range[1]}`,
+          onChange: (page, pageSize) => {
+            setPagination((prev) => ({
+              ...prev,
+              current: page,
+              pageSize: pageSize,
+            }));
+          },
+        }}
+        scroll={{ x: "max-content" }}
+      />
 
       <Modal
         title={`사용자 ${editingUser ? "수정" : "추가"}`}
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={() => setIsModalVisible(false)}
+        width={520}
+        style={{ top: 20 }}
+        bodyStyle={{
+          padding: "24px",
+          maxHeight: "calc(100vh - 200px)",
+          overflow: "auto",
+        }}
       >
         <Form form={form} layout="vertical">
           {editingUser && (
@@ -343,32 +406,13 @@ const UserManagement = () => {
             name="role"
             rules={[{ required: true, message: "권한을 선택해주세요" }]}
           >
-            <Select
-              style={{ width: "150px" }}
-              dropdownStyle={{ minWidth: "150px" }}
-            >
+            <Select>
               <Select.Option value="admin">관리자</Select.Option>
               <Select.Option value="user">일반 사용자</Select.Option>
             </Select>
           </Form.Item>
         </Form>
       </Modal>
-
-      <style>
-        {`
-          .ant-select-dropdown {
-            min-width: 150px !important;
-          }
-          .ant-select-item-option-content {
-            white-space: nowrap !important;
-            overflow: visible !important;
-          }
-          .ant-select-selection-item {
-            white-space: nowrap !important;
-            overflow: visible !important;
-          }
-        `}
-      </style>
     </div>
   );
 };

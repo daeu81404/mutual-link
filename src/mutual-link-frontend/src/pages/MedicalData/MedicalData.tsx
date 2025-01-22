@@ -77,6 +77,8 @@ interface TransferHistory {
   originalApprovalId: number;
   status?: string;
   description?: string;
+  title?: string;
+  patientName?: string;
 }
 
 interface Approval {
@@ -749,7 +751,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         Array.isArray(approval.originalApprovalId) &&
         approval.originalApprovalId.length > 0
           ? Number(approval.originalApprovalId[0].toString())
-          : approval.id;
+          : Number(approval.id.toString());
 
       // 원본 승인 정보 조회
       const originalApproval = await backendActor.getApproval(
@@ -812,6 +814,9 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
             ? Number(originalApprovalData.date.toString()) / 1000000
             : Number(originalApprovalData.date) / 1000000,
         originalApprovalId: originalId,
+        title: originalApprovalData.title || "",
+        description: originalApprovalData.description || "",
+        patientName: originalApprovalData.patientName || "",
       };
 
       const allHistories = [initialHistory, ...formattedHistories];
@@ -901,17 +906,15 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       width: 150,
       render: (cid: string) => (
         <div
-          style={{ cursor: "pointer" }}
+          className="copyable-text"
           onClick={() => {
             navigator.clipboard.writeText(cid);
             message.success("CID가 클립보드에 복사되었습니다.");
           }}
           title={cid}
         >
-          <Space>
-            <span>{cid.substring(0, 15)}...</span>
-            <CopyOutlined style={{ color: "#1890ff" }} />
-          </Space>
+          <span>{cid.substring(0, 15)}...</span>
+          <CopyOutlined />
         </div>
       ),
     },
@@ -921,14 +924,18 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       key: "status",
       width: 100,
       render: (status: string) => {
-        switch (status) {
-          case "pending":
-            return "대기";
-          case "transferred":
-            return "이관됨";
-          default:
-            return status;
-        }
+        const statusConfig: Record<
+          string,
+          { className: string; text: string }
+        > = {
+          pending: { className: "status-tag status-tag-pending", text: "대기" },
+          transferred: {
+            className: "status-tag status-tag-transferred",
+            text: "이관됨",
+          },
+        };
+        const config = statusConfig[status] || { className: "", text: status };
+        return <span className={config.className}>{config.text}</span>;
       },
     },
     {
@@ -964,10 +971,9 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   return (
     <>
       <div style={{ padding: "24px" }}>
-        <div style={{ marginBottom: 16, display: "flex", gap: 8 }}>
+        <div className="table-toolbar">
           <Select
             value={searchType}
-            style={{ width: 120 }}
             onChange={(value) => {
               setSearchType(value);
               setPagination((prev) => ({ ...prev, current: 1 }));
@@ -984,17 +990,66 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           />
           <Search
             placeholder="검색어를 입력하세요"
-            style={{ width: 300 }}
             onSearch={(value) => console.log(value)}
+            allowClear
           />
         </div>
         <Table
-          columns={columns}
+          columns={columns.map((column) => ({
+            ...column,
+            align:
+              column.key === "action" || column.key === "status"
+                ? "center"
+                : "left",
+            ellipsis: column.key !== "action",
+            render:
+              column.key === "status"
+                ? (status: string) => {
+                    const statusConfig: Record<
+                      string,
+                      { className: string; text: string }
+                    > = {
+                      pending: {
+                        className: "status-tag status-tag-pending",
+                        text: "대기",
+                      },
+                      transferred: {
+                        className: "status-tag status-tag-transferred",
+                        text: "이관됨",
+                      },
+                    };
+                    const config = statusConfig[status] || {
+                      className: "",
+                      text: status,
+                    };
+                    return (
+                      <span className={config.className}>{config.text}</span>
+                    );
+                  }
+                : column.key === "cid"
+                ? (cid: string) => (
+                    <div
+                      className="copyable-text"
+                      onClick={() => {
+                        navigator.clipboard.writeText(cid);
+                        message.success("CID가 클립보드에 복사되었습니다.");
+                      }}
+                      title={cid}
+                    >
+                      <span>{cid.substring(0, 15)}...</span>
+                      <CopyOutlined />
+                    </div>
+                  )
+                : column.render,
+          }))}
           dataSource={approvals}
           rowKey="id"
           loading={loading}
           pagination={{
             ...pagination,
+            showSizeChanger: true,
+            showTotal: (total, range) =>
+              `전체 ${total}개 중 ${range[0]}-${range[1]}`,
             onChange: (page, pageSize) => {
               setPagination((prev) => ({
                 ...prev,
@@ -1003,6 +1058,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
               }));
             },
           }}
+          scroll={{ x: "max-content" }}
         />
       </div>
       <FileViewerModal
@@ -1148,15 +1204,23 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         title={
           <div
             style={{
-              borderBottom: "1px solid #f0f0f0",
+              borderBottom: "1px solid var(--border-color)",
               padding: "16px 24px",
               margin: "0 -24px 16px",
+              background: "var(--background-color)",
             }}
           >
-            <h3 style={{ margin: 0, color: "#1890ff" }}>진료 이력 조회</h3>
-            <p style={{ margin: "8px 0 0", color: "#666", fontSize: "14px" }}>
-              {selectedRecord?.patientName} 환자의 진료 이력입니다.
-            </p>
+            <h3
+              style={{
+                margin: 0,
+                color: "var(--primary-color)",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <HistoryOutlined /> 진료 이력 조회
+            </h3>
           </div>
         }
         open={historyModalVisible}
@@ -1166,171 +1230,172 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           setDoctors([]);
         }}
         footer={null}
-        width={800}
+        width={900}
         style={{ top: 20 }}
       >
         <Timeline
           mode="left"
-          style={{
-            padding: "20px 40px",
-            maxHeight: "calc(100vh - 250px)",
-            overflowY: "auto",
-          }}
-          items={selectedHistories?.map((history, index) => ({
+          items={selectedHistories.map((history, index) => ({
             label: (
               <div
-                style={{
-                  padding: "8px 16px",
-                  background: "#f5f5f5",
-                  borderRadius: "4px",
-                  minWidth: "200px",
-                }}
+                style={{ width: "180px", fontSize: "14px", fontWeight: "500" }}
               >
-                <div style={{ fontSize: "14px", color: "#666" }}>
-                  {new Date(Number(history.date)).toLocaleString("ko-KR", {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                  })}
-                </div>
+                {new Date(history.date).toLocaleString("ko-KR", {
+                  year: "2-digit",
+                  month: "2-digit",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </div>
             ),
             children: (
               <Card
+                size="small"
                 style={{
-                  marginBottom: "16px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                  marginBottom:
+                    index === selectedHistories.length - 1 ? 0 : "24px",
                   borderRadius: "8px",
+                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+                  border: "1px solid var(--border-color)",
                 }}
-                bodyStyle={{ padding: "16px" }}
               >
-                <div style={{ marginBottom: "16px" }}>
+                <div>
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      marginBottom: "8px",
+                      gap: "8px",
+                      marginBottom: "16px",
+                      borderBottom: "1px solid var(--border-color)",
+                      paddingBottom: "12px",
                     }}
                   >
-                    <span
+                    <Tag
+                      color={index === 0 ? "blue" : "default"}
                       style={{
-                        fontSize: "16px",
-                        fontWeight: "bold",
-                        marginRight: "8px",
+                        margin: 0,
+                        padding: "4px 12px",
+                        borderRadius: "4px",
                       }}
                     >
-                      {index === 0 ? "최초 진료" : "진료 기록 전송"}
-                    </span>
-                    {history.status === "pending" && (
-                      <Tag color="processing">승인 대기중</Tag>
-                    )}
-                    {history.status === "approved" && (
-                      <Tag color="success">승인됨</Tag>
-                    )}
-                    {history.status === "rejected" && (
-                      <Tag color="error">거절됨</Tag>
-                    )}
+                      {index === 0 ? "최초 전송" : "이관됨"}
+                    </Tag>
                   </div>
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      color: "#666",
+                      alignItems: "flex-start",
+                      gap: "24px",
+                      color: "var(--text-color)",
                       fontSize: "14px",
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      {history.fromHospital && (
-                        <div style={{ marginBottom: "4px" }}>
-                          <strong>보낸 병원:</strong> {history.fromHospital}
-                          {history.fromDepartment &&
-                            ` (${history.fromDepartment})`}
-                        </div>
-                      )}
-                      {history.fromDoctor && (
-                        <div>
-                          <strong>보낸 의사:</strong> {history.fromDoctor}
-                          {history.fromEmail && (
-                            <>
-                              <br />
-                              <span style={{ fontSize: "13px", color: "#888" }}>
-                                {history.fromEmail}
-                              </span>
-                            </>
-                          )}
-                          {history.fromPhone && (
-                            <>
-                              <br />
-                              <span style={{ fontSize: "13px", color: "#888" }}>
-                                {history.fromPhone}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <ArrowRightOutlined
-                      style={{ margin: "0 16px", color: "#1890ff" }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      {history.toHospital && (
-                        <div style={{ marginBottom: "4px" }}>
-                          <strong>받은 병원:</strong> {history.toHospital}
-                          {history.toDepartment && ` (${history.toDepartment})`}
-                        </div>
-                      )}
-                      {history.toDoctor && (
-                        <div>
-                          <strong>받은 의사:</strong> {history.toDoctor}
-                          {history.toEmail && (
-                            <>
-                              <br />
-                              <span style={{ fontSize: "13px", color: "#888" }}>
-                                {history.toEmail}
-                              </span>
-                            </>
-                          )}
-                          {history.toPhone && (
-                            <>
-                              <br />
-                              <span style={{ fontSize: "13px", color: "#888" }}>
-                                {history.toPhone}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {history.description && (
-                  <div
-                    style={{
-                      background: "#f9f9f9",
-                      padding: "12px",
-                      borderRadius: "4px",
-                      fontSize: "14px",
-                      color: "#333",
+                      padding: "0 8px",
                     }}
                   >
                     <div
                       style={{
-                        marginBottom: "8px",
-                        fontWeight: "bold",
-                        color: "#666",
+                        flex: 1,
+                        background: "var(--background-color)",
+                        padding: "16px",
+                        borderRadius: "6px",
                       }}
                     >
-                      소견
+                      <div
+                        style={{
+                          fontWeight: "600",
+                          marginBottom: "12px",
+                          color: "var(--primary-color)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        송신자
+                      </div>
+                      <div
+                        style={{
+                          marginBottom: "8px",
+                          fontSize: "15px",
+                          fontWeight: "500",
+                        }}
+                      >
+                        {history.fromDoctor}
+                      </div>
+                      <div style={{ marginBottom: "8px", color: "#666" }}>
+                        {history.fromHospital} {history.fromDepartment}
+                      </div>
+                      <div
+                        style={{
+                          color: "#666",
+                          fontSize: "13px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "4px",
+                        }}
+                      >
+                        <div>{history.fromEmail}</div>
+                        <div>{history.fromPhone}</div>
+                      </div>
                     </div>
-                    {history.description}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        color: "#ccc",
+                      }}
+                    >
+                      <ArrowRightOutlined style={{ fontSize: "20px" }} />
+                    </div>
+                    <div
+                      style={{
+                        flex: 1,
+                        background: "var(--background-color)",
+                        padding: "16px",
+                        borderRadius: "6px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: "600",
+                          marginBottom: "12px",
+                          color: "var(--primary-color)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        수신자
+                      </div>
+                      <div
+                        style={{
+                          marginBottom: "8px",
+                          fontSize: "15px",
+                          fontWeight: "500",
+                        }}
+                      >
+                        {history.toDoctor}
+                      </div>
+                      <div style={{ marginBottom: "8px", color: "#666" }}>
+                        {history.toHospital} {history.toDepartment}
+                      </div>
+                      <div
+                        style={{
+                          color: "#666",
+                          fontSize: "13px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "4px",
+                        }}
+                      >
+                        <div>{history.toEmail}</div>
+                        <div>{history.toPhone}</div>
+                      </div>
+                    </div>
                   </div>
-                )}
+                </div>
               </Card>
             ),
-            color: index === 0 ? "#1890ff" : "#666",
+            color: index === 0 ? "var(--primary-color)" : "#666",
           }))}
         />
       </Modal>

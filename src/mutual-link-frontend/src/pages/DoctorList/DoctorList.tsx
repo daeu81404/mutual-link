@@ -491,17 +491,9 @@ const DoctorList = () => {
 
   return (
     <div style={{ padding: "24px" }}>
-      <div
-        style={{
-          marginBottom: 16,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
+      <div className="table-toolbar">
         <Select
           defaultValue="name"
-          style={{ width: 120 }}
           onChange={(value) => {
             setSearchType(value);
             setPagination((prev) => ({ ...prev, current: 1 }));
@@ -515,17 +507,24 @@ const DoctorList = () => {
         />
         <Search
           placeholder="검색어를 입력하세요"
-          style={{ width: 300 }}
           onSearch={(value: string) => console.log(value)}
+          allowClear
         />
       </div>
       <Table
-        columns={columns}
+        columns={columns.map((column) => ({
+          ...column,
+          align: column.key === "action" ? "center" : "left",
+          ellipsis: true,
+        }))}
         dataSource={doctors}
         rowKey="id"
         loading={loading}
         pagination={{
           ...pagination,
+          showSizeChanger: true,
+          showTotal: (total, range) =>
+            `전체 ${total}개 중 ${range[0]}-${range[1]}`,
           onChange: (page, pageSize) => {
             setPagination((prev) => ({
               ...prev,
@@ -534,6 +533,7 @@ const DoctorList = () => {
             }));
           },
         }}
+        scroll={{ x: "max-content" }}
       />
       <Modal
         title="환자 진료 기록 업로드"
@@ -545,7 +545,7 @@ const DoctorList = () => {
               textAlign: "center",
               margin: "0 -24px -24px",
               padding: "16px 24px",
-              borderTop: "1px solid #f0f0f0",
+              borderTop: "1px solid var(--border-color)",
             }}
           >
             <Button
@@ -612,7 +612,7 @@ const DoctorList = () => {
               marginBottom: 0,
               marginLeft: -24,
               marginRight: -24,
-              width: "calc(100%)",
+              width: "calc(100% + 48px)",
             }}
           >
             <Input.TextArea

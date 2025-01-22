@@ -267,10 +267,9 @@ const ApprovalWaiting = () => {
 
   return (
     <>
-      <div style={{ marginBottom: 16, display: "flex", gap: 8 }}>
+      <div className="table-toolbar">
         <Select
           value={searchRole}
-          style={{ width: 120 }}
           onChange={(value) => {
             setSearchRole(value);
             setPagination((prev) => ({ ...prev, current: 1 }));
@@ -282,17 +281,55 @@ const ApprovalWaiting = () => {
         />
         <Search
           placeholder="검색어를 입력하세요"
-          style={{ width: 300 }}
           onSearch={(value) => console.log(value)}
+          allowClear
         />
       </div>
       <Table
-        columns={columns}
+        columns={columns.map((column) => ({
+          ...column,
+          align:
+            column.key === "action" || column.key === "status"
+              ? "center"
+              : "left",
+          ellipsis: column.key !== "action",
+          render:
+            column.key === "status"
+              ? (status: string) => {
+                  const statusConfig: {
+                    [key: string]: { className: string; text: string };
+                  } = {
+                    승인대기중: {
+                      className: "status-tag status-tag-pending",
+                      text: "승인대기중",
+                    },
+                    승인완료: {
+                      className: "status-tag status-tag-approved",
+                      text: "승인완료",
+                    },
+                    이관됨: {
+                      className: "status-tag status-tag-transferred",
+                      text: "이관됨",
+                    },
+                  };
+                  const config = statusConfig[status] || {
+                    className: "",
+                    text: status,
+                  };
+                  return (
+                    <span className={config.className}>{config.text}</span>
+                  );
+                }
+              : column.render,
+        }))}
         dataSource={approvals}
         rowKey="id"
         loading={loading}
         pagination={{
           ...pagination,
+          showSizeChanger: true,
+          showTotal: (total, range) =>
+            `전체 ${total}개 중 ${range[0]}-${range[1]}`,
           onChange: (page, pageSize) => {
             setPagination((prev) => ({
               ...prev,
@@ -301,6 +338,7 @@ const ApprovalWaiting = () => {
             }));
           },
         }}
+        scroll={{ x: "max-content" }}
       />
       <DoctorInfoModal
         visible={doctorInfoModalVisible}
