@@ -14,20 +14,15 @@ interface BackendApproval {
   phone: string;
   patientName: string;
   title: string;
-  sender: {
-    hospital: string;
-    department: string;
-    doctor: string;
-  };
-  receiver: {
-    hospital: string;
-    department: string;
-    doctor: string;
-  };
+  description: string;
+  fromDoctor: string;
+  toDoctor: string;
   cid: string;
   encryptedAesKeyForSender: string;
   encryptedAesKeyForReceiver: string;
   status: string;
+  originalApprovalId: bigint | null;
+  transferredDoctors: string[];
 }
 
 interface Approval {
@@ -36,18 +31,15 @@ interface Approval {
   phone: string;
   patientName: string;
   title: string;
-  sender: {
-    hospital: string;
-    department: string;
-    doctor: string;
-  };
-  receiver: {
-    hospital: string;
-    department: string;
-    doctor: string;
-  };
+  description: string;
+  fromDoctor: string;
+  toDoctor: string;
   cid: string;
   status: string;
+  encryptedAesKeyForSender: string;
+  encryptedAesKeyForReceiver: string;
+  originalApprovalId: number | null;
+  transferredDoctors: string[];
 }
 
 const ApprovalWaiting = () => {
@@ -113,10 +105,17 @@ const ApprovalWaiting = () => {
             phone: approval.phone,
             patientName: approval.patientName,
             title: approval.title,
-            sender: approval.sender,
-            receiver: approval.receiver,
+            description: approval.description,
+            fromDoctor: approval.fromDoctor,
+            toDoctor: approval.toDoctor,
             cid: approval.cid,
             status: approval.status,
+            encryptedAesKeyForSender: approval.encryptedAesKeyForSender,
+            encryptedAesKeyForReceiver: approval.encryptedAesKeyForReceiver,
+            originalApprovalId: approval.originalApprovalId
+              ? Number(approval.originalApprovalId.toString())
+              : null,
+            transferredDoctors: approval.transferredDoctors,
           })
         );
 
@@ -165,29 +164,13 @@ const ApprovalWaiting = () => {
       title: "송신자",
       key: "sender",
       width: 200,
-      render: (_, record) => (
-        <>
-          {record.sender.hospital}
-          <br />
-          {record.sender.department}
-          <br />
-          {record.sender.doctor}
-        </>
-      ),
+      render: (_, record) => <>{record.fromDoctor}</>,
     },
     {
       title: "수신자",
       key: "receiver",
       width: 200,
-      render: (_, record) => (
-        <>
-          {record.receiver.hospital}
-          <br />
-          {record.receiver.department}
-          <br />
-          {record.receiver.doctor}
-        </>
-      ),
+      render: (_, record) => <>{record.toDoctor}</>,
     },
     {
       title: "CID",

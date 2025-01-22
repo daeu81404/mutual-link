@@ -54,4 +54,33 @@ actor {
   public query func getApproval(id: Nat) : async ?ApprovalManagement.Approval {
     approvalManager.getApproval(id)
   };
+
+  public shared (_) func addTransferHistory(history: {
+    id: Nat;
+    fromDoctor: Text;
+    fromEmail: Text;
+    toDoctor: Text;
+    toEmail: Text;
+    date: Int;
+    originalApprovalId: Nat;
+  }) : async Result.Result<(), Text> {
+    let transferHistory: ApprovalManagement.TransferHistory = {
+      id = history.id;
+      fromDoctor = history.fromDoctor;
+      fromEmail = history.fromEmail;
+      toDoctor = history.toDoctor;
+      toEmail = history.toEmail;
+      date = history.date;
+      originalApprovalId = history.originalApprovalId;
+    };
+    approvalManager.addTransferHistory(transferHistory)
+  };
+
+  public query func getTransferHistories(approvalId: Nat) : async [ApprovalManagement.TransferHistory] {
+    approvalManager.getTransferHistories(approvalId)
+  };
+
+  public query func getRelatedApprovals(originalId: Nat) : async [ApprovalManagement.Approval] {
+    approvalManager.getRelatedApprovals(originalId)
+  };
 };

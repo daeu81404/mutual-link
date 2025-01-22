@@ -9,6 +9,7 @@ import Time "mo:base/Time";
 import Text "mo:base/Text";
 import Int "mo:base/Int";
 import Order "mo:base/Order";
+import Option "mo:base/Option";
 
 module {
     public type Approval = {
@@ -17,20 +18,25 @@ module {
         phone: Text;
         patientName: Text;
         title: Text;
-        sender: {
-            hospital: Text;
-            department: Text;
-            doctor: Text;
-        };
-        receiver: {
-            hospital: Text;
-            department: Text;
-            doctor: Text;
-        };
+        description: Text;
+        fromDoctor: Text;
+        toDoctor: Text;
         cid: Text;
         encryptedAesKeyForSender: Text;
         encryptedAesKeyForReceiver: Text;
-        status: Text;  // "승인대기중", "승인완료", "승인거절"
+        status: Text;  // "pending", "approved", "rejected"
+        originalApprovalId: ?Nat;
+        transferredDoctors: [Text];  // 이관에 참여한 의사 목록
+    };
+
+    public type TransferHistory = {
+        id: Nat;
+        fromDoctor: Text;
+        fromEmail: Text;
+        toDoctor: Text;
+        toEmail: Text;
+        date: Int;
+        originalApprovalId: Nat;
     };
 
     public type PagedResult = {
@@ -40,7 +46,9 @@ module {
 
     public class ApprovalManager() {
         private var approvals = HashMap.HashMap<Nat, Approval>(1, Nat.equal, Hash.hash);
+        private var transferHistories = HashMap.HashMap<Nat, [TransferHistory]>(1, Nat.equal, Hash.hash);
         private var nextId : Nat = 1;
+        private var nextHistoryId : Nat = 1;
 
         public func createApproval(approval: Approval) : Result.Result<Approval, Text> {
             let id = nextId;
@@ -52,12 +60,15 @@ module {
                 phone = approval.phone;
                 patientName = approval.patientName;
                 title = approval.title;
-                sender = approval.sender;
-                receiver = approval.receiver;
+                description = approval.description;
+                fromDoctor = approval.fromDoctor;
+                toDoctor = approval.toDoctor;
                 cid = approval.cid;
                 encryptedAesKeyForSender = approval.encryptedAesKeyForSender;
                 encryptedAesKeyForReceiver = approval.encryptedAesKeyForReceiver;
-                status = "승인대기중";
+                status = "pending";
+                originalApprovalId = approval.originalApprovalId;
+                transferredDoctors = [approval.fromDoctor];  // 초기 생성 시 송신자를 이관 목록에 추가
             };
 
             approvals.put(id, newApproval);
@@ -74,12 +85,15 @@ module {
                         phone = approval.phone;
                         patientName = approval.patientName;
                         title = approval.title;
-                        sender = approval.sender;
-                        receiver = approval.receiver;
+                        description = approval.description;
+                        fromDoctor = approval.fromDoctor;
+                        toDoctor = approval.toDoctor;
                         cid = approval.cid;
                         encryptedAesKeyForSender = approval.encryptedAesKeyForSender;
                         encryptedAesKeyForReceiver = approval.encryptedAesKeyForReceiver;
                         status = status;
+                        originalApprovalId = approval.originalApprovalId;
+                        transferredDoctors = approval.transferredDoctors;
                     };
                     approvals.put(id, updatedApproval);
                     #ok(updatedApproval)
@@ -121,9 +135,9 @@ module {
             // 1. 해당 의사의 승인 목록 필터링
             let filteredApprovals = Array.filter<Approval>(allApprovals, func(approval: Approval) : Bool {
                 if (role == "sender") {
-                    approval.sender.doctor == doctorName
+                    approval.fromDoctor == doctorName
                 } else {
-                    approval.receiver.doctor == doctorName
+                    approval.toDoctor == doctorName
                 }
             });
 
@@ -154,6 +168,92 @@ module {
 
         public func getApproval(id: Nat) : ?Approval {
             approvals.get(id)
+        };
+
+        // 이관 히스토리 추가
+        public func addTransferHistory(history: TransferHistory) : Result.Result<(), Text> {
+            let histories = switch (transferHistories.get(history.originalApprovalId)) {
+                case (null) { [] };
+                case (?existing) { existing };
+            };
+            
+            let newHistory = {
+                id = nextHistoryId;
+                fromDoctor = history.fromDoctor;
+                fromEmail = history.fromEmail;
+                toDoctor = history.toDoctor;
+                toEmail = history.toEmail;
+                date = history.date;
+                originalApprovalId = history.originalApprovalId;
+            };
+            nextHistoryId += 1;
+            
+            transferHistories.put(history.originalApprovalId, Array.append<TransferHistory>(histories, [newHistory]));
+            #ok(())
+        };
+
+        // 이관 히스토리 조회
+        public func getTransferHistories(approvalId: Nat) : [TransferHistory] {
+            switch (transferHistories.get(approvalId)) {
+                case (null) { [] };
+                case (?histories) { histories };
+            }
+        };
+
+        // 연관된 승인 목록 조회
+        public func getRelatedApprovals(originalId: Nat) : [Approval] {
+            let allApprovals = Iter.toArray(approvals.vals());
+            Array.filter<Approval>(allApprovals, func (a: Approval) : Bool {
+                switch (a.originalApprovalId) {
+                    case (null) { a.id == originalId };
+                    case (?id) { id == originalId };
+                }
+            })
+        };
+
+        // 이관 가능 여부 확인 함수 추가
+        private func canTransfer(approval: Approval, doctorName: Text) : Bool {
+            let isCurrentReceiver = approval.toDoctor == doctorName;
+            let hasNotTransferred = Option.isNull(
+                Array.find<Text>(
+                    approval.transferredDoctors,
+                    func(x: Text) : Bool { x == doctorName }
+                )
+            );
+            isCurrentReceiver and hasNotTransferred
+        };
+
+        // 진료 기록 이관 함수 추가
+        public func transferApproval(approvalId: Nat, fromDoctor: Text, toDoctor: Text) : Result.Result<Approval, Text> {
+            switch (approvals.get(approvalId)) {
+                case (null) { #err("해당 ID의 승인 요청을 찾을 수 없습니다.") };
+                case (?approval) {
+                    // 이관 가능 여부 확인
+                    if (not canTransfer(approval, fromDoctor)) {
+                        #err("이관 권한이 없습니다.")
+                    } else {
+                        let updatedApproval = {
+                            id = approval.id;
+                            date = Time.now();
+                            phone = approval.phone;
+                            patientName = approval.patientName;
+                            title = approval.title;
+                            description = approval.description;
+                            fromDoctor = fromDoctor;
+                            toDoctor = toDoctor;
+                            cid = approval.cid;
+                            encryptedAesKeyForSender = approval.encryptedAesKeyForSender;
+                            encryptedAesKeyForReceiver = approval.encryptedAesKeyForReceiver;
+                            status = "pending";
+                            originalApprovalId = ?approvalId;
+                            transferredDoctors = Array.append<Text>(approval.transferredDoctors, [fromDoctor]);
+                        };
+                        
+                        approvals.put(approvalId, updatedApproval);
+                        #ok(updatedApproval)
+                    };
+                };
+            };
         };
     };
 }; 

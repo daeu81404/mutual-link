@@ -376,25 +376,20 @@ const DoctorList = () => {
 
       // 5. ApprovalManager에 데이터 저장
       const approvalData = {
-        id: 0,
-        date: 0,
+        id: BigInt(0),
+        date: BigInt(Date.now()),
         phone: values.phone,
         patientName: values.patientName,
         title: values.title,
-        sender: {
-          hospital: userInfo?.hospital || "",
-          department: userInfo?.department || "",
-          doctor: userInfo?.name || "",
-        },
-        receiver: {
-          hospital: selectedDoctor?.hospital || "",
-          department: selectedDoctor?.department || "",
-          doctor: selectedDoctor?.name || "",
-        },
+        description: values.description || "",
+        fromDoctor: userInfo?.name || "",
+        toDoctor: selectedDoctor?.name || "",
         cid,
         encryptedAesKeyForSender,
         encryptedAesKeyForReceiver,
-        status: "승인대기중",
+        status: "pending",
+        originalApprovalId: [], // opt nat 타입을 위해 빈 배열로 설정
+        transferredDoctors: [userInfo?.name || ""],
       };
 
       console.log("저장할 데이터:", {
