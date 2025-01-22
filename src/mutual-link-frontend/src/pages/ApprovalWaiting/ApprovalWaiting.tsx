@@ -164,13 +164,15 @@ const ApprovalWaiting = () => {
       title: "송신자",
       key: "sender",
       width: 200,
-      render: (_, record) => <>{record.fromDoctor}</>,
+      render: (_: unknown, record: Approval) => <>{record.fromDoctor}</>,
+      hidden: searchRole === "sender",
     },
     {
       title: "수신자",
       key: "receiver",
       width: 200,
-      render: (_, record) => <>{record.toDoctor}</>,
+      render: (_: unknown, record: Approval) => <>{record.toDoctor}</>,
+      hidden: searchRole === "receiver",
     },
     {
       title: "CID",
@@ -203,7 +205,7 @@ const ApprovalWaiting = () => {
         return <span style={{ color }}>{status}</span>;
       },
     },
-  ];
+  ].filter((column) => !column.hidden);
 
   return (
     <div>

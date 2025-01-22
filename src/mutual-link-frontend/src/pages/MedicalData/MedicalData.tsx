@@ -151,7 +151,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   const [backendActor, setBackendActor] = useState<any>(null);
   const [searchType, setSearchType] = useState<
     "sender" | "receiver" | "patient"
-  >("sender");
+  >(type === "send" ? "receiver" : "sender");
   const [viewerModalVisible, setViewerModalVisible] = useState(false);
   const [viewerFiles, setViewerFiles] = useState<{
     dicom: ArrayBuffer[];
@@ -803,7 +803,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       title: "생성일",
       key: "date",
       width: 120,
-      render: (_, record) => {
+      render: (_: unknown, record: Approval) => {
         const date = new Date(Number(record.date) / 1000000); // nanoseconds to milliseconds
         return date.toLocaleString("ko-KR", {
           year: "2-digit",
@@ -826,13 +826,15 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       title: "송신자",
       key: "sender",
       width: 200,
-      render: (_, record) => <>{record.fromDoctor}</>,
+      render: (_: unknown, record: Approval) => <>{record.fromDoctor}</>,
+      hidden: type === "send",
     },
     {
       title: "수신자",
       key: "receiver",
       width: 200,
-      render: (_, record) => <>{record.toDoctor}</>,
+      render: (_: unknown, record: Approval) => <>{record.toDoctor}</>,
+      hidden: type === "receive",
     },
     {
       title: "CID",
@@ -874,7 +876,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     {
       title: "작업",
       key: "action",
-      render: (_, record) => (
+      render: (_: unknown, record: Approval) => (
         <Space size="middle">
           <Button icon={<EyeOutlined />} onClick={() => handleFileView(record)}>
             보기
@@ -899,7 +901,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         </Space>
       ),
     },
-  ];
+  ].filter((column) => !column.hidden);
 
   return (
     <>
@@ -913,8 +915,12 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
               setPagination((prev) => ({ ...prev, current: 1 }));
             }}
             options={[
-              { value: "sender", label: "송신자" },
-              { value: "receiver", label: "수신자" },
+              ...(type === "receive"
+                ? [{ value: "sender", label: "송신자" }]
+                : []),
+              ...(type === "send"
+                ? [{ value: "receiver", label: "수신자" }]
+                : []),
               { value: "patient", label: "환자명" },
             ]}
           />
