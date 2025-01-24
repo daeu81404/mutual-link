@@ -9,7 +9,7 @@ import DoctorInfoModal from "@/components/DoctorInfoModal";
 
 const { Search } = Input;
 
-interface BackendApproval {
+interface BackendMedicalRecord {
   id: bigint;
   date: bigint;
   phone: string;
@@ -22,7 +22,7 @@ interface BackendApproval {
   encryptedAesKeyForSender: string;
   encryptedAesKeyForReceiver: string;
   status: string;
-  originalApprovalId: bigint | null;
+  originalRecordId: bigint | null;
   transferredDoctors: string[];
   fromEmail?: string;
   fromHospital?: string;
@@ -34,7 +34,7 @@ interface BackendApproval {
   toPhone?: string;
 }
 
-interface Approval {
+interface MedicalRecord {
   id: number;
   date: number;
   phone: string;
@@ -55,13 +55,13 @@ interface Approval {
   status: string;
   encryptedAesKeyForSender: string;
   encryptedAesKeyForReceiver: string;
-  originalApprovalId: number | null;
+  originalRecordId: number | null;
   transferredDoctors: string[];
 }
 
-const ApprovalWaiting = () => {
+const MedicalRecordWaiting = () => {
   const { userInfo } = useAuth();
-  const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [backendActor, setBackendActor] = useState<any>(null);
   const [searchRole, setSearchRole] = useState<"receiver" | "sender">("sender");
@@ -109,66 +109,66 @@ const ApprovalWaiting = () => {
       }
     };
 
-    const fetchApprovals = async () => {
+    const fetchMedicalRecords = async () => {
       setLoading(true);
       try {
         const actor = await initActor();
         if (!actor || !userInfo?.name) return;
 
         const offset = (pagination.current - 1) * pagination.pageSize;
-        const result = (await actor.getApprovalsByDoctor(
+        const result = (await actor.getMedicalRecordsByDoctor(
           userInfo.name,
           searchRole,
           offset,
           pagination.pageSize
-        )) as { items: BackendApproval[]; total: bigint };
+        )) as { items: BackendMedicalRecord[]; total: bigint };
 
-        const formattedApprovals = result.items.map(
-          (approval: BackendApproval) => ({
-            id: Number(approval.id),
-            date: Number(approval.date),
-            phone: approval.phone,
-            patientName: approval.patientName,
-            title: approval.title,
-            description: approval.description,
-            fromDoctor: approval.fromDoctor,
-            fromEmail: approval.fromEmail || "",
-            fromHospital: approval.fromHospital || "",
-            fromDepartment: approval.fromDepartment || "",
-            fromPhone: approval.fromPhone || "",
-            toDoctor: approval.toDoctor,
-            toEmail: approval.toEmail || "",
-            toHospital: approval.toHospital || "",
-            toDepartment: approval.toDepartment || "",
-            toPhone: approval.toPhone || "",
-            cid: approval.cid,
-            status: approval.status,
-            encryptedAesKeyForSender: approval.encryptedAesKeyForSender,
-            encryptedAesKeyForReceiver: approval.encryptedAesKeyForReceiver,
-            originalApprovalId: approval.originalApprovalId
-              ? Number(approval.originalApprovalId.toString())
+        const formattedRecords = result.items.map(
+          (record: BackendMedicalRecord) => ({
+            id: Number(record.id),
+            date: Number(record.date),
+            phone: record.phone,
+            patientName: record.patientName,
+            title: record.title,
+            description: record.description,
+            fromDoctor: record.fromDoctor,
+            fromEmail: record.fromEmail || "",
+            fromHospital: record.fromHospital || "",
+            fromDepartment: record.fromDepartment || "",
+            fromPhone: record.fromPhone || "",
+            toDoctor: record.toDoctor,
+            toEmail: record.toEmail || "",
+            toHospital: record.toHospital || "",
+            toDepartment: record.toDepartment || "",
+            toPhone: record.toPhone || "",
+            cid: record.cid,
+            status: record.status,
+            encryptedAesKeyForSender: record.encryptedAesKeyForSender,
+            encryptedAesKeyForReceiver: record.encryptedAesKeyForReceiver,
+            originalRecordId: record.originalRecordId
+              ? Number(record.originalRecordId.toString())
               : null,
-            transferredDoctors: approval.transferredDoctors,
+            transferredDoctors: record.transferredDoctors,
           })
         );
 
-        setApprovals(formattedApprovals);
+        setMedicalRecords(formattedRecords);
         setPagination((prev) => ({
           ...prev,
           total: Number(result.total.toString()),
         }));
       } catch (error) {
-        console.error("승인 목록 조회 실패:", error);
-        message.error("승인 목록을 가져오는데 실패했습니다.");
+        console.error("진료 기록 조회 실패:", error);
+        message.error("진료 기록을 가져오는데 실패했습니다.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchApprovals();
+    fetchMedicalRecords();
   }, [userInfo?.name, searchRole, pagination.current, pagination.pageSize]);
 
-  const handleDoctorClick = (record: Approval, isFromDoctor: boolean) => {
+  const handleDoctorClick = (record: MedicalRecord, isFromDoctor: boolean) => {
     setSelectedDoctorInfo({
       name: isFromDoctor ? record.fromDoctor : record.toDoctor,
       email: isFromDoctor ? record.fromEmail : record.toEmail,
@@ -179,13 +179,13 @@ const ApprovalWaiting = () => {
     setDoctorInfoModalVisible(true);
   };
 
-  const columns: ColumnsType<Approval> = [
+  const columns: ColumnsType<MedicalRecord> = [
     { title: "No", dataIndex: "id", key: "id", width: 70 },
     {
       title: "생성일",
       key: "date",
       width: 120,
-      render: (_: unknown, record: Approval) => {
+      render: (_: unknown, record: MedicalRecord) => {
         const date = new Date(Number(record.date) / 1000000); // nanoseconds to milliseconds
         return date.toLocaleString("ko-KR", {
           year: "2-digit",
@@ -208,7 +208,7 @@ const ApprovalWaiting = () => {
       title: "송신자",
       key: "sender",
       width: 200,
-      render: (_: unknown, record: Approval) => (
+      render: (_: unknown, record: MedicalRecord) => (
         <div
           style={{ cursor: "pointer", color: "#1890ff" }}
           onClick={() => handleDoctorClick(record, true)}
@@ -222,7 +222,7 @@ const ApprovalWaiting = () => {
       title: "수신자",
       key: "receiver",
       width: 200,
-      render: (_: unknown, record: Approval) => (
+      render: (_: unknown, record: MedicalRecord) => (
         <div
           style={{ cursor: "pointer", color: "#1890ff" }}
           onClick={() => handleDoctorClick(record, false)}
@@ -248,7 +248,7 @@ const ApprovalWaiting = () => {
         >
           <Space>
             <span>{cid.substring(0, 15)}...</span>
-            <CopyOutlined style={{ color: "#1890ff" }} />
+            <CopyOutlined />
           </Space>
         </div>
       ),
@@ -259,97 +259,71 @@ const ApprovalWaiting = () => {
       key: "status",
       width: 100,
       render: (status: string) => {
-        const color = status === "승인대기중" ? "#ff4d4f" : "#52c41a";
-        return <span style={{ color }}>{status}</span>;
+        const statusConfig: Record<
+          string,
+          { className: string; text: string }
+        > = {
+          pending: { className: "status-tag status-tag-pending", text: "대기" },
+          transferred: {
+            className: "status-tag status-tag-transferred",
+            text: "이관됨",
+          },
+        };
+        const config = statusConfig[status] || { className: "", text: status };
+        return <span className={config.className}>{config.text}</span>;
       },
     },
   ].filter((column) => !column.hidden);
 
   return (
     <>
-      <div className="table-toolbar">
-        <Select
-          value={searchRole}
-          onChange={(value) => {
-            setSearchRole(value);
-            setPagination((prev) => ({ ...prev, current: 1 }));
+      <div style={{ padding: "24px" }}>
+        <div className="table-toolbar">
+          <Select
+            value={searchRole}
+            onChange={(value) => {
+              setSearchRole(value);
+              setPagination((prev) => ({ ...prev, current: 1 }));
+            }}
+            options={[
+              { value: "sender", label: "송신자" },
+              { value: "receiver", label: "수신자" },
+            ]}
+          />
+          <Search
+            placeholder="검색어를 입력하세요"
+            onSearch={(value) => console.log(value)}
+            allowClear
+          />
+        </div>
+        <Table
+          columns={columns}
+          dataSource={medicalRecords}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            ...pagination,
+            showSizeChanger: true,
+            showTotal: (total, range) =>
+              `전체 ${total}개 중 ${range[0]}-${range[1]}`,
+            onChange: (page, pageSize) => {
+              setPagination((prev) => ({
+                ...prev,
+                current: page,
+                pageSize: pageSize,
+              }));
+            },
           }}
-          options={[
-            { value: "receiver", label: "수신자" },
-            { value: "sender", label: "송신자" },
-          ]}
-        />
-        <Search
-          placeholder="검색어를 입력하세요"
-          onSearch={(value) => console.log(value)}
-          allowClear
+          scroll={{ x: "max-content" }}
         />
       </div>
-      <Table
-        columns={columns.map((column) => ({
-          ...column,
-          align:
-            column.key === "action" || column.key === "status"
-              ? "center"
-              : "left",
-          ellipsis: column.key !== "action",
-          render:
-            column.key === "status"
-              ? (status: string) => {
-                  const statusConfig: {
-                    [key: string]: { className: string; text: string };
-                  } = {
-                    승인대기중: {
-                      className: "status-tag status-tag-pending",
-                      text: "승인대기중",
-                    },
-                    승인완료: {
-                      className: "status-tag status-tag-approved",
-                      text: "승인완료",
-                    },
-                    이관됨: {
-                      className: "status-tag status-tag-transferred",
-                      text: "이관됨",
-                    },
-                  };
-                  const config = statusConfig[status] || {
-                    className: "",
-                    text: status,
-                  };
-                  return (
-                    <span className={config.className}>{config.text}</span>
-                  );
-                }
-              : column.render,
-        }))}
-        dataSource={approvals}
-        rowKey="id"
-        loading={loading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showTotal: (total, range) =>
-            `전체 ${total}개 중 ${range[0]}-${range[1]}`,
-          onChange: (page, pageSize) => {
-            setPagination((prev) => ({
-              ...prev,
-              current: page,
-              pageSize: pageSize,
-            }));
-          },
-        }}
-        scroll={{ x: "max-content" }}
-      />
       <DoctorInfoModal
         visible={doctorInfoModalVisible}
-        onClose={() => {
-          setDoctorInfoModalVisible(false);
-          setSelectedDoctorInfo(null);
-        }}
+        onClose={() => setDoctorInfoModalVisible(false)}
         doctor={selectedDoctorInfo}
       />
     </>
   );
 };
 
-export default ApprovalWaiting;
+export default MedicalRecordWaiting;

@@ -1,11 +1,11 @@
 import DoctorManagement "./DoctorManagement";
-import ApprovalManagement "./ApprovalManagement";
+import MedicalRecordManagement "./MedicalRecordManagement";
 import Result "mo:base/Result";
 import Nat "mo:base/Nat";
 
 actor {
   private let doctorManager = DoctorManagement.DoctorManager();
-  private let approvalManager = ApprovalManagement.ApprovalManager();
+  private let medicalRecordManager = MedicalRecordManagement.MedicalRecordManager(doctorManager);
 
   public shared (_) func createDoctor(doctor: DoctorManagement.Doctor) : async Result.Result<DoctorManagement.Doctor, Text> {
     doctorManager.createDoctor(doctor)
@@ -35,64 +35,61 @@ actor {
     doctorManager.getDoctorByEmail(email)
   };
 
-  public shared (_) func createApproval(approval: ApprovalManagement.Approval) : async Result.Result<ApprovalManagement.Approval, Text> {
-    approvalManager.createApproval(approval)
+  public shared (_) func createMedicalRecord(
+    patientName: Text,
+    title: Text,
+    description: Text,
+    fromEmail: Text,
+    toEmail: Text,
+    cid: Text,
+    encryptedAesKeyForSender: Text,
+    encryptedAesKeyForReceiver: Text
+  ) : async Result.Result<MedicalRecordManagement.MedicalRecord, Text> {
+    medicalRecordManager.createMedicalRecord(
+      patientName,
+      title,
+      description,
+      fromEmail,
+      toEmail,
+      cid,
+      encryptedAesKeyForSender,
+      encryptedAesKeyForReceiver
+    )
   };
 
-  public shared (_) func updateApprovalStatus(id: Nat, status: Text) : async Result.Result<ApprovalManagement.Approval, Text> {
-    approvalManager.updateApprovalStatus(id, status)
+  public shared (_) func updateMedicalRecordStatus(id: Nat, status: Text) : async Result.Result<MedicalRecordManagement.MedicalRecord, Text> {
+    medicalRecordManager.updateMedicalRecordStatus(id, status)
   };
 
-  public query func getPagedApprovals(offset: Nat, limit: Nat) : async ApprovalManagement.PagedResult {
-    approvalManager.getAllApprovals(offset, limit)
+  public query func getPagedMedicalRecords(offset: Nat, limit: Nat) : async MedicalRecordManagement.PagedResult {
+    medicalRecordManager.getAllMedicalRecords(offset, limit)
   };
 
-  public query func getApprovalsByDoctor(doctorName: Text, role: Text, offset: Nat, limit: Nat) : async ApprovalManagement.PagedResult {
-    approvalManager.getApprovalsByDoctor(doctorName, role, offset, limit)
+  public query func getMedicalRecordsByDoctor(doctorName: Text, role: Text, offset: Nat, limit: Nat) : async MedicalRecordManagement.PagedResult {
+    medicalRecordManager.getMedicalRecordsByDoctor(doctorName, role, offset, limit)
   };
 
-  public query func getApproval(id: Nat) : async ?ApprovalManagement.Approval {
-    approvalManager.getApproval(id)
+  public query func getMedicalRecord(id: Nat) : async ?MedicalRecordManagement.MedicalRecord {
+    medicalRecordManager.getMedicalRecord(id)
   };
 
-  public shared (_) func addTransferHistory(history: {
-    id: Nat;
-    fromDoctor: Text;
-    fromEmail: Text;
-    fromHospital: Text;
-    fromDepartment: Text;
-    fromPhone: Text;
-    toDoctor: Text;
-    toEmail: Text;
-    toHospital: Text;
-    toDepartment: Text;
-    toPhone: Text;
-    date: Int;
-    originalApprovalId: Nat;
-  }) : async Result.Result<(), Text> {
-    let transferHistory: ApprovalManagement.TransferHistory = {
-      id = history.id;
-      fromDoctor = history.fromDoctor;
-      fromEmail = history.fromEmail;
-      fromHospital = history.fromHospital;
-      fromDepartment = history.fromDepartment;
-      fromPhone = history.fromPhone;
-      toDoctor = history.toDoctor;
-      toEmail = history.toEmail;
-      toHospital = history.toHospital;
-      toDepartment = history.toDepartment;
-      toPhone = history.toPhone;
-      date = history.date;
-      originalApprovalId = history.originalApprovalId;
-    };
-    approvalManager.addTransferHistory(transferHistory)
+  public query func getTransferHistory(recordId: Nat) : async [MedicalRecordManagement.MedicalRecord] {
+    medicalRecordManager.getTransferHistory(recordId)
   };
 
-  public query func getTransferHistories(approvalId: Nat) : async [ApprovalManagement.TransferHistory] {
-    approvalManager.getTransferHistories(approvalId)
-  };
-
-  public query func getRelatedApprovals(originalId: Nat) : async [ApprovalManagement.Approval] {
-    approvalManager.getRelatedApprovals(originalId)
+  public shared (_) func transferMedicalRecord(
+    recordId: Nat,
+    fromEmail: Text,
+    toEmail: Text,
+    encryptedAesKeyForSender: Text,
+    encryptedAesKeyForReceiver: Text
+  ) : async Result.Result<MedicalRecordManagement.MedicalRecord, Text> {
+    medicalRecordManager.transferMedicalRecord(
+      recordId,
+      fromEmail,
+      toEmail,
+      encryptedAesKeyForSender,
+      encryptedAesKeyForReceiver
+    )
   };
 };

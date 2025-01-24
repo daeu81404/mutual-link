@@ -21,6 +21,7 @@
     "@types/node": "^22.10.5",
     "antd": "^5.23.0",
     "elliptic": "^6.6.1",
+    "ethers": "^6.13.5",
     "react-router-dom": "^7.1.1"
   }
 }

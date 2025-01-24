@@ -47,6 +47,7 @@ export default function Home() {
     if (path === "medical-data-receive") return "medicalDataReceive";
     if (path === "user-management") return "userManagement";
     if (path === "hospital-management") return "hospitalManagement";
+    if (path === "medical-record-waiting") return "medicalRecordWaiting";
     return "doctorList";
   };
 
@@ -75,6 +76,9 @@ export default function Home() {
         break;
       case "hospitalManagement":
         navigate("/home/hospital-management");
+        break;
+      case "medicalRecordWaiting":
+        navigate("/home/medical-record-waiting");
         break;
     }
   };

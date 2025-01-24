@@ -43,7 +43,7 @@ interface Doctor {
   hospital: string;
   department: string;
   role: string;
-  publicKey: string;
+  publicKey: string | null;
 }
 
 // 청크 크기를 500KB로 수정 (메모리 사용량 최적화)
@@ -267,7 +267,10 @@ const DoctorList = () => {
           hospital: doctor.hospital,
           department: doctor.department,
           role: doctor.role,
-          publicKey: doctor.publicKey[0],
+          publicKey:
+            Array.isArray(doctor.publicKey) && doctor.publicKey.length > 0
+              ? doctor.publicKey[0]
+              : null,
         }));
 
         setDoctors(formattedDoctors);
@@ -352,77 +355,53 @@ const DoctorList = () => {
 
       message.success({ content: "파일 업로드 완료", key });
 
+      // 공개키 유효성 검사 추가
+      if (!selectedDoctor.publicKey) {
+        message.error("수신자의 공개키가 없습니다.");
+        return;
+      }
+
       // 3. 송신자의 공개키로 AES 키 암호화
       if (!userInfo.publicKey) {
         message.error("송신자의 공개키가 없습니다.");
         return;
       }
+
+      // 공개키 로그 추가
       console.log("송신자 공개키:", userInfo.publicKey);
+      console.log("수신자 공개키:", selectedDoctor.publicKey);
+
       const encryptedAesKeyForSender = await encryptAesKey(
         aesKey,
         userInfo.publicKey
       );
 
-      // 4. 수신자의 공개키로 AES 키 암호화
-      if (!selectedDoctor.publicKey) {
-        message.error("수신자의 공개키가 없습니다.");
-        return;
-      }
-      console.log("수신자 공개키:", selectedDoctor.publicKey);
       const encryptedAesKeyForReceiver = await encryptAesKey(
         aesKey,
         selectedDoctor.publicKey
       );
 
       // 5. ApprovalManager에 데이터 저장
-      const approvalData = {
-        id: BigInt(0),
-        date: BigInt(Date.now() * 1000000),
-        phone: form.getFieldValue("phone"),
-        patientName: form.getFieldValue("patientName"),
-        title: form.getFieldValue("title"),
-        description: form.getFieldValue("description") || "",
-        fromDoctor: userInfo?.name || "",
-        fromEmail: userInfo?.email || "",
-        fromHospital: userInfo?.hospital || "",
-        fromDepartment: userInfo?.department || "",
-        fromPhone: userInfo?.phone || "",
-        toDoctor: selectedDoctor?.name || "",
-        toEmail: selectedDoctor?.email || "",
-        toHospital: selectedDoctor?.hospital || "",
-        toDepartment: selectedDoctor?.department || "",
-        toPhone: selectedDoctor?.phone || "",
-        cid: cid,
-        encryptedAesKeyForSender: encryptedAesKeyForSender,
-        encryptedAesKeyForReceiver: encryptedAesKeyForReceiver,
-        status: "pending",
-        originalApprovalId: [],
-        transferredDoctors: [userInfo?.name || ""],
-      };
+      const result = await backendActor.createMedicalRecord(
+        values.patientName,
+        values.title,
+        values.description,
+        userInfo?.email || "",
+        selectedDoctor?.email || "",
+        cid,
+        encryptedAesKeyForSender,
+        encryptedAesKeyForReceiver
+      );
 
-      console.log("저장할 데이터:", {
-        ...approvalData,
-        encryptedAesKeyForSender:
-          encryptedAesKeyForSender.substring(0, 50) + "...",
-        encryptedAesKeyForReceiver:
-          encryptedAesKeyForReceiver.substring(0, 50) + "...",
-      });
-
-      try {
-        const result = await backendActor.createApproval(approvalData);
-        if (result) {
-          message.success("승인 요청이 성공적으로 생성되었습니다.");
-          setIsModalOpen(false);
-          form.resetFields();
-        } else {
-          message.error("승인 요청 생성에 실패했습니다.");
-        }
-      } catch (error) {
-        console.error("승인 요청 생성 실패:", error);
-        message.error(`승인 요청 생성 실패: ${error}`);
+      if ("ok" in result) {
+        message.success("진료 기록이 성공적으로 생성되었습니다.");
+        setIsModalOpen(false);
+        form.resetFields();
+      } else {
+        message.error(result.err);
       }
     } catch (error) {
-      console.error("업로드 실패:", error);
+      console.error("진료 기록 전송에 실패했습니다:", error);
       message.error("진료 기록 전송에 실패했습니다.");
     }
   };

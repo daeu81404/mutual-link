@@ -36,7 +36,7 @@ interface MedicalDataProps {
   type: "send" | "receive";
 }
 
-interface BackendApproval {
+interface BackendMedicalRecord {
   id: bigint;
   date: bigint;
   phone: string;
@@ -57,31 +57,11 @@ interface BackendApproval {
   encryptedAesKeyForSender: string;
   encryptedAesKeyForReceiver: string;
   status: string;
-  originalApprovalId: bigint | null;
+  originalRecordId: bigint | null;
   transferredDoctors: string[];
 }
 
-interface TransferHistory {
-  id: number;
-  fromDoctor: string;
-  fromEmail: string;
-  fromHospital: string;
-  fromDepartment: string;
-  fromPhone: string;
-  toDoctor: string;
-  toEmail: string;
-  toHospital: string;
-  toDepartment: string;
-  toPhone: string;
-  date: number;
-  originalApprovalId: number;
-  status?: string;
-  description?: string;
-  title?: string;
-  patientName?: string;
-}
-
-interface Approval {
+interface MedicalRecord {
   id: number;
   date: number;
   phone: string;
@@ -102,7 +82,7 @@ interface Approval {
   status: string;
   encryptedAesKeyForSender: string;
   encryptedAesKeyForReceiver: string;
-  originalApprovalId: number | null;
+  originalRecordId: number | null;
   transferredDoctors: string[];
 }
 
@@ -165,7 +145,7 @@ const decryptAesKey = async (encryptedAesKey: string, privateKey: string) => {
 
 const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   const { userInfo } = useAuth();
-  const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [backendActor, setBackendActor] = useState<any>(null);
   const [searchType, setSearchType] = useState<
@@ -188,7 +168,9 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   });
   const [medicalDataCache] = useState(() => new MedicalDataCache());
   const [transferModalVisible, setTransferModalVisible] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<Approval | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<MedicalRecord | null>(
+    null
+  );
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [doctorPagination, setDoctorPagination] = useState({
@@ -201,10 +183,10 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   >("name");
   const [doctorSearchKeyword, setDoctorSearchKeyword] = useState("");
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
-  const [selectedHistories, setSelectedHistories] = useState<TransferHistory[]>(
+  const [selectedHistories, setSelectedHistories] = useState<MedicalRecord[]>(
     []
   );
-  const [relatedApprovals, setRelatedApprovals] = useState<Approval[]>([]);
+  const [relatedRecords, setRelatedRecords] = useState<MedicalRecord[]>([]);
   const [selectedDoctorInfo, setSelectedDoctorInfo] = useState<{
     name: string;
     email: string;
@@ -244,70 +226,70 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       }
     };
 
-    const fetchApprovals = async () => {
+    const fetchMedicalRecords = async () => {
       setLoading(true);
       try {
         const actor = await initActor();
         if (!actor || !userInfo?.name) return;
 
         const offset = (pagination.current - 1) * pagination.pageSize;
-        const result = (await actor.getApprovalsByDoctor(
+        const result = (await actor.getMedicalRecordsByDoctor(
           userInfo.name,
           type === "send" ? "sender" : "receiver",
           offset,
           pagination.pageSize
-        )) as { items: BackendApproval[]; total: bigint };
+        )) as { items: BackendMedicalRecord[]; total: bigint };
 
-        const formattedApprovals = result.items.map(
-          (approval: BackendApproval) => ({
-            id: Number(approval.id),
-            date: Number(approval.date),
-            phone: approval.phone,
-            patientName: approval.patientName,
-            title: approval.title,
-            description: approval.description,
-            fromDoctor: approval.fromDoctor,
-            fromEmail: approval.fromEmail || "",
-            fromHospital: approval.fromHospital || "",
-            fromDepartment: approval.fromDepartment || "",
-            fromPhone: approval.fromPhone || "",
-            toDoctor: approval.toDoctor,
-            toEmail: approval.toEmail || "",
-            toHospital: approval.toHospital || "",
-            toDepartment: approval.toDepartment || "",
-            toPhone: approval.toPhone || "",
-            cid: approval.cid,
-            status: approval.status,
-            encryptedAesKeyForSender: approval.encryptedAesKeyForSender,
-            encryptedAesKeyForReceiver: approval.encryptedAesKeyForReceiver,
-            originalApprovalId: approval.originalApprovalId
-              ? Number(approval.originalApprovalId.toString())
+        const formattedRecords = result.items.map(
+          (record: BackendMedicalRecord) => ({
+            id: Number(record.id.toString()),
+            date: Number(record.date.toString()) / 1000000,
+            phone: record.phone,
+            patientName: record.patientName,
+            title: record.title,
+            description: record.description,
+            fromDoctor: record.fromDoctor,
+            fromEmail: record.fromEmail,
+            fromHospital: record.fromHospital,
+            fromDepartment: record.fromDepartment,
+            fromPhone: record.fromPhone,
+            toDoctor: record.toDoctor,
+            toEmail: record.toEmail,
+            toHospital: record.toHospital,
+            toDepartment: record.toDepartment,
+            toPhone: record.toPhone,
+            cid: record.cid,
+            status: record.status,
+            encryptedAesKeyForSender: record.encryptedAesKeyForSender,
+            encryptedAesKeyForReceiver: record.encryptedAesKeyForReceiver,
+            originalRecordId: record.originalRecordId
+              ? Number(record.originalRecordId.toString())
               : null,
-            transferredDoctors: approval.transferredDoctors,
+            transferredDoctors: record.transferredDoctors,
           })
         );
 
-        setApprovals(formattedApprovals);
+        setMedicalRecords(formattedRecords);
         setPagination((prev) => ({
           ...prev,
           total: Number(result.total.toString()),
         }));
       } catch (error) {
-        console.error("승인 목록 조회 실패:", error);
-        message.error("승인 목록을 가져오는데 실패했습니다.");
+        console.error("진료 기록 조회 실패:", error);
+        message.error("진료 기록을 가져오는데 실패했습니다.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchApprovals();
+    fetchMedicalRecords();
   }, [userInfo?.name, type, pagination.current, pagination.pageSize]);
 
   useEffect(() => {
     medicalDataCache.init();
   }, []);
 
-  const handleFileView = async (record: Approval) => {
+  const handleFileView = async (record: MedicalRecord) => {
     // 전체 화면 로딩 표시
     const loadingModal = Modal.info({
       title: "파일 처리 중...",
@@ -517,10 +499,45 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   };
 
   // 이관 모달 열기
-  const handleTransferClick = (record: Approval) => {
+  const handleTransferClick = (record: MedicalRecord) => {
     setSelectedRecord(record);
     setTransferModalVisible(true);
     fetchDoctors(1, doctorPagination.pageSize);
+  };
+
+  // 이관 히스토리 조회
+  const handleHistoryClick = async (recordId: number) => {
+    try {
+      const relatedRecords = await backendActor.getTransferHistory(recordId);
+
+      const formattedRecords = relatedRecords.map((record: any) => ({
+        id: Number(record.id.toString()),
+        fromDoctor: record.fromDoctor,
+        fromEmail: record.fromEmail,
+        fromHospital: record.fromHospital || "",
+        fromDepartment: record.fromDepartment || "",
+        fromPhone: record.fromPhone || "",
+        toDoctor: record.toDoctor,
+        toEmail: record.toEmail,
+        toHospital: record.toHospital || "",
+        toDepartment: record.toDepartment || "",
+        toPhone: record.toPhone || "",
+        date:
+          typeof record.date === "bigint"
+            ? Number(record.date.toString()) / 1000000
+            : Number(record.date) / 1000000,
+        title: record.title || "",
+        description: record.description || "",
+        patientName: record.patientName || "",
+        status: record.status || "",
+      }));
+
+      setSelectedHistories(formattedRecords);
+      setHistoryModalVisible(true);
+    } catch (error) {
+      console.error("이관 히스토리 조회 실패:", error);
+      message.error("이관 히스토리를 불러오는데 실패했습니다.");
+    }
   };
 
   // 이관 실행
@@ -534,12 +551,11 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       return;
     }
     if (!selectedRecord) {
-      message.error("이관할 진료 데이터가 선택되지 않았습니다.");
+      message.error("이관할 진료 기록을 선택해주세요.");
       return;
     }
-    // 이미 이관된 데이터인지 확인
     if (selectedRecord.status === "transferred") {
-      message.error("이미 이관된 진료 데이터입니다.");
+      message.error("이미 이관된 진료 기록입니다.");
       return;
     }
     if (!selectedDoctor) {
@@ -554,10 +570,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     try {
       setLoading(true);
 
-      // 1. IPFS에서 파일 다운로드
-      const encryptedBlob = await downloadFromIPFS(selectedRecord.cid);
-
-      // 2. 현재 사용자의 AES 키 복호화
+      // 1. 현재 사용자의 AES 키 복호화
       const decryptedAesKey = await decryptAesKey(
         type === "send"
           ? selectedRecord.encryptedAesKeyForSender
@@ -565,30 +578,20 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         userInfo?.privateKey || ""
       );
 
-      // 3. 새로운 의사의 공개키로 AES 키 암호화
-      console.log("Selected doctor public key:", selectedDoctor.publicKey); // 디버깅용 로그
-
-      // publicKey가 배열인 경우 첫 번째 요소를 사용
-      let receiverPublicKeyHex = Array.isArray(selectedDoctor.publicKey)
-        ? selectedDoctor.publicKey[0]
-        : selectedDoctor.publicKey;
-
-      // 0x 접두사가 있으면 제거
-      if (
-        typeof receiverPublicKeyHex === "string" &&
-        receiverPublicKeyHex.startsWith("0x")
-      ) {
-        receiverPublicKeyHex = receiverPublicKeyHex.slice(2);
-      }
-
-      // 현재 사용자(sender)의 공개키 처리
+      // 2. 새로운 의사들의 공개키로 AES 키 암호화
       if (!userInfo.publicKey) {
         message.error("현재 사용자의 공개키가 없습니다.");
         return;
       }
+
       let senderPublicKeyHex = userInfo.publicKey;
       if (senderPublicKeyHex.startsWith("0x")) {
         senderPublicKeyHex = senderPublicKeyHex.slice(2);
+      }
+
+      let receiverPublicKeyHex = selectedDoctor.publicKey;
+      if (receiverPublicKeyHex.startsWith("0x")) {
+        receiverPublicKeyHex = receiverPublicKeyHex.slice(2);
       }
 
       if (!receiverPublicKeyHex || !senderPublicKeyHex) {
@@ -596,241 +599,95 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         return;
       }
 
-      console.log(
-        "Public key hex for encryption - receiver:",
-        receiverPublicKeyHex
-      ); // 디버깅용 로그
-      console.log(
-        "Public key hex for encryption - sender:",
-        senderPublicKeyHex
-      ); // 디버깅용 로그
-
       // Receiver용 AES 키 암호화
-      const encryptedAesKeyForNewReceiver = await eccrypto.encrypt(
+      const encryptedAesKeyForReceiver = await eccrypto.encrypt(
         Buffer.from(receiverPublicKeyHex, "hex"),
         Buffer.from(decryptedAesKey, "hex")
       );
+      const encryptedAesKeyForReceiverString = JSON.stringify({
+        iv: encryptedAesKeyForReceiver.iv.toString("hex"),
+        ephemPublicKey:
+          encryptedAesKeyForReceiver.ephemPublicKey.toString("hex"),
+        ciphertext: encryptedAesKeyForReceiver.ciphertext.toString("hex"),
+        mac: encryptedAesKeyForReceiver.mac.toString("hex"),
+      });
 
       // Sender용 AES 키 암호화
-      const encryptedAesKeyForNewSender = await eccrypto.encrypt(
+      const encryptedAesKeyForSender = await eccrypto.encrypt(
         Buffer.from(senderPublicKeyHex, "hex"),
         Buffer.from(decryptedAesKey, "hex")
       );
-
-      const encryptedAesKeyForReceiverString = JSON.stringify({
-        iv: encryptedAesKeyForNewReceiver.iv.toString("hex"),
-        ephemPublicKey:
-          encryptedAesKeyForNewReceiver.ephemPublicKey.toString("hex"),
-        ciphertext: encryptedAesKeyForNewReceiver.ciphertext.toString("hex"),
-        mac: encryptedAesKeyForNewReceiver.mac.toString("hex"),
-      });
-
       const encryptedAesKeyForSenderString = JSON.stringify({
-        iv: encryptedAesKeyForNewSender.iv.toString("hex"),
-        ephemPublicKey:
-          encryptedAesKeyForNewSender.ephemPublicKey.toString("hex"),
-        ciphertext: encryptedAesKeyForNewSender.ciphertext.toString("hex"),
-        mac: encryptedAesKeyForNewSender.mac.toString("hex"),
+        iv: encryptedAesKeyForSender.iv.toString("hex"),
+        ephemPublicKey: encryptedAesKeyForSender.ephemPublicKey.toString("hex"),
+        ciphertext: encryptedAesKeyForSender.ciphertext.toString("hex"),
+        mac: encryptedAesKeyForSender.mac.toString("hex"),
       });
 
-      // 4. 새로운 승인 생성 (originalApprovalId 추가)
-      const originalId = selectedRecord.originalApprovalId || selectedRecord.id;
-      const approvalData = {
-        id: BigInt(0),
-        date: BigInt(Date.now() * 1000000),
-        phone: selectedRecord.phone,
-        patientName: selectedRecord.patientName,
-        title: selectedRecord.title,
-        description: selectedRecord.description || "",
-        fromDoctor: userInfo?.name || "",
-        fromEmail: userInfo?.email || "",
-        fromHospital: userInfo?.hospital || "",
-        fromDepartment: userInfo?.department || "",
-        fromPhone: userInfo?.phone || "",
-        toDoctor: selectedDoctor?.name || "",
-        toEmail: selectedDoctor?.email || "",
-        toHospital: selectedDoctor?.hospital || "",
-        toDepartment: selectedDoctor?.department || "",
-        toPhone: selectedDoctor?.phone || "",
-        cid: selectedRecord.cid,
-        encryptedAesKeyForSender: encryptedAesKeyForSenderString,
-        encryptedAesKeyForReceiver: encryptedAesKeyForReceiverString,
-        status: "pending",
-        originalApprovalId: [BigInt(originalId)],
-        transferredDoctors: [userInfo?.name || ""],
-      };
-
-      await backendActor.createApproval(approvalData);
-
-      // 5. 이관 히스토리 추가
-      await backendActor.addTransferHistory({
-        id: BigInt(0),
-        fromDoctor: userInfo.name,
-        fromEmail: userInfo.email,
-        fromHospital: userInfo.hospital || "",
-        fromDepartment: userInfo.department || "",
-        fromPhone: userInfo.phone || "", // userInfo의 전화번호 사용
-        toDoctor: selectedDoctor.name,
-        toEmail: selectedDoctor.email,
-        toHospital: selectedDoctor.hospital || "",
-        toDepartment: selectedDoctor.department || "",
-        toPhone: selectedDoctor.phone || "",
-        date: BigInt(Date.now() * 1000000),
-        originalApprovalId: BigInt(originalId),
-      });
-
-      // 6. 원본 데이터의 상태를 transferred로 업데이트
-      await backendActor.updateApprovalStatus(selectedRecord.id, "transferred");
-
-      message.success("진료 데이터가 성공적으로 이관되었습니다.");
-      setTransferModalVisible(false);
-      setSelectedDoctor(null);
-      setSelectedRecord(null);
-
-      // 목록 새로고침
-      const offset = (pagination.current - 1) * pagination.pageSize;
-      const result = await backendActor.getApprovalsByDoctor(
-        userInfo.name,
-        type === "send" ? "sender" : "receiver",
-        offset,
-        pagination.pageSize
+      // 3. 이관 실행
+      const result = await backendActor.transferMedicalRecord(
+        selectedRecord.id,
+        userInfo.email,
+        selectedDoctor.email,
+        encryptedAesKeyForSenderString,
+        encryptedAesKeyForReceiverString
       );
 
-      const formattedApprovals = result.items.map(
-        (approval: BackendApproval) => ({
-          id: Number(approval.id.toString()),
-          date: Number(approval.date.toString()),
-          phone: approval.phone,
-          patientName: approval.patientName,
-          title: approval.title,
-          description: approval.description,
-          fromDoctor: approval.fromDoctor,
-          toDoctor: approval.toDoctor,
-          cid: approval.cid,
-          status: approval.status,
-          encryptedAesKeyForSender: approval.encryptedAesKeyForSender,
-          encryptedAesKeyForReceiver: approval.encryptedAesKeyForReceiver,
-          originalApprovalId: approval.originalApprovalId
-            ? Number(approval.originalApprovalId.toString())
+      if ("ok" in result) {
+        message.success("진료 기록이 성공적으로 이관되었습니다.");
+        setTransferModalVisible(false);
+        setSelectedDoctor(null);
+        setSelectedRecord(null);
+
+        // 목록 새로고침
+        const offset = (pagination.current - 1) * pagination.pageSize;
+        const recordResult = await backendActor.getMedicalRecordsByDoctor(
+          userInfo.name,
+          type === "send" ? "sender" : "receiver",
+          offset,
+          pagination.pageSize
+        );
+
+        const formattedRecords = recordResult.items.map((record: any) => ({
+          id: Number(record.id.toString()),
+          date: Number(record.date.toString()) / 1000000,
+          phone: record.phone,
+          patientName: record.patientName,
+          title: record.title,
+          description: record.description,
+          fromDoctor: record.fromDoctor,
+          fromEmail: record.fromEmail,
+          fromHospital: record.fromHospital,
+          fromDepartment: record.fromDepartment,
+          fromPhone: record.fromPhone,
+          toDoctor: record.toDoctor,
+          toEmail: record.toEmail,
+          toHospital: record.toHospital,
+          toDepartment: record.toDepartment,
+          toPhone: record.toPhone,
+          cid: record.cid,
+          status: record.status,
+          encryptedAesKeyForSender: record.encryptedAesKeyForSender,
+          encryptedAesKeyForReceiver: record.encryptedAesKeyForReceiver,
+          originalRecordId: record.originalRecordId
+            ? Number(record.originalRecordId.toString())
             : null,
-          transferredDoctors: approval.transferredDoctors,
-        })
-      );
+          transferredDoctors: record.transferredDoctors,
+        }));
 
-      setApprovals(formattedApprovals);
+        setMedicalRecords(formattedRecords);
+      } else {
+        message.error(result.err);
+      }
     } catch (error) {
-      console.error("진료 데이터 이관 실패:", error);
-      message.error("진료 데이터 이관에 실패했습니다.");
+      console.error("진료 기록 이관 실패:", error);
+      message.error("진료 기록 이관에 실패했습니다.");
     } finally {
       setLoading(false);
     }
   };
 
-  // 이관 히스토리 조회
-  const handleHistoryClick = async (approvalId: number) => {
-    try {
-      // 의사 목록 먼저 로드
-      await fetchDoctors(1, 100); // 충분한 수의 의사 목록을 가져옴
-
-      // 현재 승인 정보 조회
-      const approvalResult = await backendActor.getApproval(BigInt(approvalId));
-      console.log("현재 승인 정보:", approvalResult);
-
-      if (!approvalResult) {
-        message.error("승인 정보를 찾을 수 없습니다.");
-        return;
-      }
-
-      // approval이 배열인 경우 첫 번째 항목 사용
-      const approval = Array.isArray(approvalResult)
-        ? approvalResult[0]
-        : approvalResult;
-
-      // originalApprovalId가 있으면 그것을 사용, 없으면 현재 id가 원본
-      const originalId =
-        Array.isArray(approval.originalApprovalId) &&
-        approval.originalApprovalId.length > 0
-          ? Number(approval.originalApprovalId[0].toString())
-          : Number(approval.id.toString());
-
-      // 원본 승인 정보 조회
-      const originalApproval = await backendActor.getApproval(
-        BigInt(originalId)
-      );
-      if (!originalApproval) {
-        message.error("원본 승인 정보를 찾을 수 없습니다.");
-        return;
-      }
-
-      const originalApprovalData = Array.isArray(originalApproval)
-        ? originalApproval[0]
-        : originalApproval;
-
-      console.log("사용할 originalId:", originalId);
-
-      const histories = await backendActor.getTransferHistories(
-        BigInt(originalId)
-      );
-      console.log("조회된 이관 히스토리:", histories);
-
-      const formattedHistories = histories.map((h: any) => {
-        console.log("개별 히스토리 데이터:", h); // 디버깅을 위한 로그 추가
-        const historyDate =
-          typeof h.date === "bigint"
-            ? Number(h.date.toString()) / 1000000
-            : Number(h.date) / 1000000;
-        return {
-          id: Number(h.id),
-          fromDoctor: h.fromDoctor,
-          fromEmail: h.fromEmail,
-          fromHospital: h.fromHospital || "",
-          fromDepartment: h.fromDepartment || "",
-          fromPhone: h.fromPhone || "",
-          toDoctor: h.toDoctor,
-          toEmail: h.toEmail,
-          toHospital: h.toHospital || "",
-          toDepartment: h.toDepartment || "",
-          toPhone: h.toPhone || "",
-          date: historyDate,
-          originalApprovalId: Number(h.originalApprovalId),
-        };
-      });
-
-      // 최초 전송 기록 추가
-      const initialHistory = {
-        id: originalId,
-        fromDoctor: originalApprovalData.fromDoctor || "",
-        fromEmail: originalApprovalData.fromEmail || "",
-        fromHospital: originalApprovalData.fromHospital || "",
-        fromDepartment: originalApprovalData.fromDepartment || "",
-        fromPhone: originalApprovalData.fromPhone || "",
-        toDoctor: originalApprovalData.toDoctor || "",
-        toEmail: originalApprovalData.toEmail || "",
-        toHospital: originalApprovalData.toHospital || "",
-        toDepartment: originalApprovalData.toDepartment || "",
-        toPhone: originalApprovalData.toPhone || "",
-        date:
-          typeof originalApprovalData.date === "bigint"
-            ? Number(originalApprovalData.date.toString()) / 1000000
-            : Number(originalApprovalData.date) / 1000000,
-        originalApprovalId: originalId,
-        title: originalApprovalData.title || "",
-        description: originalApprovalData.description || "",
-        patientName: originalApprovalData.patientName || "",
-      };
-
-      const allHistories = [initialHistory, ...formattedHistories];
-      console.log("전체 히스토리:", allHistories);
-
-      setSelectedHistories(allHistories);
-      setHistoryModalVisible(true);
-    } catch (error) {
-      console.error("이관 히스토리 조회 실패:", error);
-      message.error("이관 히스토리를 불러오는데 실패했습니다.");
-    }
-  };
-
-  const handleDoctorClick = (record: Approval, isFromDoctor: boolean) => {
+  const handleDoctorClick = (record: MedicalRecord, isFromDoctor: boolean) => {
     setSelectedDoctorInfo({
       name: isFromDoctor ? record.fromDoctor : record.toDoctor,
       email: isFromDoctor ? record.fromEmail : record.toEmail,
@@ -841,7 +698,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     setDoctorInfoModalVisible(true);
   };
 
-  const columns: ColumnsType<Approval> = [
+  const columns: ColumnsType<MedicalRecord> = [
     {
       title: "No",
       dataIndex: "id",
@@ -852,7 +709,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       title: "생성일",
       key: "date",
       width: 120,
-      render: (_: unknown, record: Approval) => {
+      render: (_: unknown, record: MedicalRecord) => {
         const date = new Date(Number(record.date) / 1000000); // nanoseconds to milliseconds
         return date.toLocaleString("ko-KR", {
           year: "2-digit",
@@ -875,7 +732,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       title: "송신자",
       key: "sender",
       width: 200,
-      render: (_: unknown, record: Approval) => (
+      render: (_: unknown, record: MedicalRecord) => (
         <div
           style={{ cursor: "pointer", color: "#1890ff" }}
           onClick={() => handleDoctorClick(record, true)}
@@ -889,7 +746,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       title: "수신자",
       key: "receiver",
       width: 200,
-      render: (_: unknown, record: Approval) => (
+      render: (_: unknown, record: MedicalRecord) => (
         <div
           style={{ cursor: "pointer", color: "#1890ff" }}
           onClick={() => handleDoctorClick(record, false)}
@@ -941,7 +798,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     {
       title: "작업",
       key: "action",
-      render: (_: unknown, record: Approval) => (
+      render: (_: unknown, record: MedicalRecord) => (
         <Space size="middle">
           <Button icon={<EyeOutlined />} onClick={() => handleFileView(record)}>
             보기
@@ -953,9 +810,9 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
             진료이력
           </Button>
           {type === "receive" &&
-            record.status !== "transferred" &&
+            record.status === "pending" &&
             record.toDoctor === userInfo?.name &&
-            !record.transferredDoctors.includes(userInfo?.name || "") && (
+            record.fromDoctor !== userInfo?.name && (
               <Button
                 icon={<SwapOutlined />}
                 onClick={() => handleTransferClick(record)}
@@ -1042,7 +899,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
                   )
                 : column.render,
           }))}
-          dataSource={approvals}
+          dataSource={medicalRecords}
           rowKey="id"
           loading={loading}
           pagination={{
