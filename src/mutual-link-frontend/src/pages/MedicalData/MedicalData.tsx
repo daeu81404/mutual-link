@@ -99,8 +99,8 @@ interface Doctor {
 
 // IPFS 게이트웨이 목록
 const IPFS_GATEWAYS = [
-  "https://ipfs.io/ipfs/",
   "https://gateway.pinata.cloud/ipfs/",
+  "https://ipfs.io/ipfs/",
   "https://cloudflare-ipfs.com/ipfs/",
   "https://dweb.link/ipfs/",
   "https://ipfs.infura.io/ipfs/",
