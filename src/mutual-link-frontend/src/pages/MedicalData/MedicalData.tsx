@@ -698,6 +698,19 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     setDoctorInfoModalVisible(true);
   };
 
+  // 진료 의뢰 버튼 표시 여부 결정 함수
+  const showTransferButton = (record: MedicalRecord) => {
+    // 1. 수신 페이지에서만 표시
+    if (type !== "receive") return false;
+    // 2. 대기 상태인 경우만 표시
+    if (record.status !== "pending") return false;
+    // 3. 현재 사용자가 수신자인 경우만 표시
+    if (record.toDoctor !== userInfo?.name) return false;
+    // 4. 현재 사용자가 송신자가 아닌 경우만 표시
+    if (record.fromDoctor === userInfo?.name) return false;
+    return true;
+  };
+
   const columns: ColumnsType<MedicalRecord> = [
     {
       title: "No",
@@ -809,17 +822,14 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           >
             진료이력
           </Button>
-          {type === "receive" &&
-            record.status === "pending" &&
-            record.toDoctor === userInfo?.name &&
-            record.fromDoctor !== userInfo?.name && (
-              <Button
-                icon={<SwapOutlined />}
-                onClick={() => handleTransferClick(record)}
-              >
-                진료의뢰
-              </Button>
-            )}
+          {showTransferButton(record) && (
+            <Button
+              icon={<SwapOutlined />}
+              onClick={() => handleTransferClick(record)}
+            >
+              진료의뢰
+            </Button>
+          )}
         </Space>
       ),
     },

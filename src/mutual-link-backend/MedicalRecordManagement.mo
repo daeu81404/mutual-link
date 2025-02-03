@@ -187,8 +187,10 @@ module {
             // 1. 해당 의사의 진료 기록 필터링
             let filteredRecords = Array.filter<MedicalRecord>(allRecords, func(record: MedicalRecord) : Bool {
                 if (role == "sender") {
-                    // 송신자인 경우: 자신이 최초 생성한 기록만 표시 (이관한 기록은 제외)
-                    record.fromDoctor == doctorName and Option.isNull(record.originalRecordId)
+                    // 송신자인 경우:
+                    // 1) 자신이 최초 생성한 기록 또는
+                    // 2) 자신이 이관한 기록
+                    record.fromDoctor == doctorName
                 } else {
                     // 수신자인 경우: 자신이 수신자로 지정된 기록 표시
                     record.toDoctor == doctorName
