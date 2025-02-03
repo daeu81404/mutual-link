@@ -448,7 +448,7 @@ const DoctorList = () => {
     { title: "병원", dataIndex: "hospital", key: "hospital" },
     { title: "부서", dataIndex: "department", key: "department" },
     {
-      title: "환자 진료 기록 전송",
+      title: "진료의뢰",
       key: "action",
       render: (_, record) => {
         // 현재 로그인한 사용자와 동일한 의사인 경우
@@ -461,7 +461,7 @@ const DoctorList = () => {
         }
         return (
           <Button type="primary" onClick={() => handleDoctorUpload(record)}>
-            환자 진료 기록 전송
+            진료의뢰
           </Button>
         );
       },
@@ -515,7 +515,7 @@ const DoctorList = () => {
         scroll={{ x: "max-content" }}
       />
       <Modal
-        title="환자 진료 기록 업로드"
+        title="진료의뢰"
         open={isModalOpen}
         onCancel={handleModalCancel}
         footer={
