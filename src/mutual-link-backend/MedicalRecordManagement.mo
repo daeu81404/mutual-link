@@ -34,7 +34,7 @@ module {
         cid: Text;
         encryptedAesKeyForSender: Text;
         encryptedAesKeyForReceiver: Text;
-        status: Text;
+        status: Text;  // PENDING_APPROVAL | REJECTED | APPROVED | TRANSFERRED | EXPIRED
         originalRecordId: ?Nat;
         transferredDoctors: [Text];
     };
@@ -102,7 +102,7 @@ module {
                                 cid = cid;
                                 encryptedAesKeyForSender = encryptedAesKeyForSender;
                                 encryptedAesKeyForReceiver = encryptedAesKeyForReceiver;
-                                status = "pending";
+                                status = "APPROVED";  // 환자 승인 프로세스 구현 전까지는 자동 승인
                                 originalRecordId = null;
                                 transferredDoctors = [sender.name];
                             };
@@ -288,7 +288,7 @@ module {
         // 이관 가능 여부 확인 함수
         private func canTransfer(record: MedicalRecord, doctorName: Text) : Bool {
             let isCurrentReceiver = record.toDoctor == doctorName;
-            let hasNotTransferred = record.status == "pending";
+            let hasNotTransferred = record.status == "APPROVED";  // APPROVED 상태에서만 이관 가능
             isCurrentReceiver and hasNotTransferred
         };
 
@@ -355,7 +355,7 @@ module {
                                             cid = record.cid;
                                             encryptedAesKeyForSender = encryptedAesKeyForSender;
                                             encryptedAesKeyForReceiver = encryptedAesKeyForReceiver;
-                                            status = "pending";
+                                            status = "APPROVED";  // 환자 승인 프로세스 구현 전까지는 자동 승인
                                             originalRecordId = ?originalId;
                                             transferredDoctors = Array.append<Text>(record.transferredDoctors, [sender.name]);
                                         };
@@ -364,7 +364,7 @@ module {
                                         updateTransferHistoryCache(originalId, nextId);
                                         nextId += 1;
 
-                                        // 원본 기록의 상태를 "transferred"로 업데이트
+                                        // 원본 기록의 상태를 "TRANSFERRED"로 업데이트
                                         let updatedRecord = {
                                             id = record.id;
                                             date = record.date;
@@ -385,7 +385,7 @@ module {
                                             cid = record.cid;
                                             encryptedAesKeyForSender = record.encryptedAesKeyForSender;
                                             encryptedAesKeyForReceiver = record.encryptedAesKeyForReceiver;
-                                            status = "transferred";
+                                            status = "TRANSFERRED";
                                             originalRecordId = record.originalRecordId;
                                             transferredDoctors = record.transferredDoctors;
                                         };

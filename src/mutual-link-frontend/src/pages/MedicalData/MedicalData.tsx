@@ -262,32 +262,58 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         )) as { items: BackendMedicalRecord[]; total: bigint };
 
         const formattedRecords = result.items.map(
-          (record: BackendMedicalRecord) => ({
-            id: Number(record.id.toString()),
-            date: Number(record.date.toString()) / 1000000,
-            phone: record.phone,
-            patientName: record.patientName,
-            title: record.title,
-            description: record.description,
-            fromDoctor: record.fromDoctor,
-            fromEmail: record.fromEmail,
-            fromHospital: record.fromHospital,
-            fromDepartment: record.fromDepartment,
-            fromPhone: record.fromPhone,
-            toDoctor: record.toDoctor,
-            toEmail: record.toEmail,
-            toHospital: record.toHospital,
-            toDepartment: record.toDepartment,
-            toPhone: record.toPhone,
-            cid: record.cid,
-            status: record.status,
-            encryptedAesKeyForSender: record.encryptedAesKeyForSender,
-            encryptedAesKeyForReceiver: record.encryptedAesKeyForReceiver,
-            originalRecordId: record.originalRecordId
-              ? Number(record.originalRecordId.toString())
-              : null,
-            transferredDoctors: record.transferredDoctors,
-          })
+          (record: BackendMedicalRecord) => {
+            // 상태값 매핑 로직
+            let status = record.status;
+            // 모든 페이지에서 상태를 한글로 표시
+            switch (record.status) {
+              case "PENDING_APPROVAL":
+              case "pending":
+              case "APPROVED":
+                status = "승인됨";
+                break;
+              case "REJECTED":
+                status = "거부됨";
+                break;
+              case "TRANSFERRED":
+              case "transferred":
+                status = "이관됨";
+                break;
+              case "EXPIRED":
+                status = "만료됨";
+                break;
+              default:
+                status = "승인됨"; // 기본값도 승인됨으로 변경
+                break;
+            }
+
+            return {
+              id: Number(record.id.toString()),
+              date: Number(record.date.toString()) / 1000000,
+              phone: record.phone,
+              patientName: record.patientName,
+              title: record.title,
+              description: record.description,
+              fromDoctor: record.fromDoctor,
+              fromEmail: record.fromEmail,
+              fromHospital: record.fromHospital,
+              fromDepartment: record.fromDepartment,
+              fromPhone: record.fromPhone,
+              toDoctor: record.toDoctor,
+              toEmail: record.toEmail,
+              toHospital: record.toHospital,
+              toDepartment: record.toDepartment,
+              toPhone: record.toPhone,
+              cid: record.cid,
+              status: status,
+              encryptedAesKeyForSender: record.encryptedAesKeyForSender,
+              encryptedAesKeyForReceiver: record.encryptedAesKeyForReceiver,
+              originalRecordId: record.originalRecordId
+                ? Number(record.originalRecordId.toString())
+                : null,
+              transferredDoctors: record.transferredDoctors,
+            };
+          }
         );
 
         setMedicalRecords(formattedRecords);
@@ -669,32 +695,57 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           pagination.pageSize
         );
 
-        const formattedRecords = recordResult.items.map((record: any) => ({
-          id: Number(record.id.toString()),
-          date: Number(record.date.toString()) / 1000000,
-          phone: record.phone,
-          patientName: record.patientName,
-          title: record.title,
-          description: record.description,
-          fromDoctor: record.fromDoctor,
-          fromEmail: record.fromEmail,
-          fromHospital: record.fromHospital,
-          fromDepartment: record.fromDepartment,
-          fromPhone: record.fromPhone,
-          toDoctor: record.toDoctor,
-          toEmail: record.toEmail,
-          toHospital: record.toHospital,
-          toDepartment: record.toDepartment,
-          toPhone: record.toPhone,
-          cid: record.cid,
-          status: record.status,
-          encryptedAesKeyForSender: record.encryptedAesKeyForSender,
-          encryptedAesKeyForReceiver: record.encryptedAesKeyForReceiver,
-          originalRecordId: record.originalRecordId
-            ? Number(record.originalRecordId.toString())
-            : null,
-          transferredDoctors: record.transferredDoctors,
-        }));
+        const formattedRecords = recordResult.items.map((record: any) => {
+          // 상태값 매핑 로직
+          let status = record.status;
+          switch (record.status) {
+            case "PENDING_APPROVAL":
+            case "pending":
+            case "APPROVED":
+              status = "승인됨";
+              break;
+            case "REJECTED":
+              status = "거부됨";
+              break;
+            case "TRANSFERRED":
+            case "transferred":
+              status = "이관됨";
+              break;
+            case "EXPIRED":
+              status = "만료됨";
+              break;
+            default:
+              status = "승인됨";
+              break;
+          }
+
+          return {
+            id: Number(record.id.toString()),
+            date: Number(record.date.toString()) / 1000000,
+            phone: record.phone,
+            patientName: record.patientName,
+            title: record.title,
+            description: record.description,
+            fromDoctor: record.fromDoctor,
+            fromEmail: record.fromEmail,
+            fromHospital: record.fromHospital,
+            fromDepartment: record.fromDepartment,
+            fromPhone: record.fromPhone,
+            toDoctor: record.toDoctor,
+            toEmail: record.toEmail,
+            toHospital: record.toHospital,
+            toDepartment: record.toDepartment,
+            toPhone: record.toPhone,
+            cid: record.cid,
+            status: status,
+            encryptedAesKeyForSender: record.encryptedAesKeyForSender,
+            encryptedAesKeyForReceiver: record.encryptedAesKeyForReceiver,
+            originalRecordId: record.originalRecordId
+              ? Number(record.originalRecordId.toString())
+              : null,
+            transferredDoctors: record.transferredDoctors,
+          };
+        });
 
         setMedicalRecords(formattedRecords);
       } else {
@@ -723,8 +774,8 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   const showTransferButton = (record: MedicalRecord) => {
     // 1. 수신 페이지에서만 표시
     if (type !== "receive") return false;
-    // 2. 대기 상태인 경우만 표시
-    if (record.status !== "pending") return false;
+    // 2. 승인됨 상태인 경우만 표시
+    if (record.status !== "승인됨") return false;
     // 3. 현재 사용자가 수신자인 경우만 표시
     if (record.toDoctor !== userInfo?.name) return false;
     // 4. 현재 사용자가 송신자가 아닌 경우만 표시
@@ -815,18 +866,46 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       key: "status",
       width: 100,
       render: (status: string) => {
-        const statusConfig: Record<
-          string,
-          { className: string; text: string }
-        > = {
-          pending: { className: "status-tag status-tag-pending", text: "대기" },
-          transferred: {
-            className: "status-tag status-tag-transferred",
+        const statusConfig: Record<string, { color: string; text: string }> = {
+          거부됨: {
+            color: "red",
+            text: "거부됨",
+          },
+          승인됨: {
+            color: "green",
+            text: "승인됨",
+          },
+          이관됨: {
+            color: "blue",
             text: "이관됨",
           },
+          만료됨: {
+            color: "default",
+            text: "만료됨",
+          },
         };
-        const config = statusConfig[status] || { className: "", text: status };
-        return <span className={config.className}>{config.text}</span>;
+
+        const config = statusConfig[status] || {
+          color: "default",
+          text: status,
+        };
+        return (
+          <Tag
+            color={config.color}
+            style={{
+              borderRadius: "12px",
+              padding: "0 12px",
+              height: "24px",
+              lineHeight: "24px",
+              fontSize: "12px",
+              fontWeight: 500,
+              textAlign: "center",
+              minWidth: "70px",
+            }}
+          >
+            {config.text}
+          </Tag>
+        );
       },
     },
     {
@@ -891,30 +970,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
                 : "left",
             ellipsis: column.key !== "action",
             render:
-              column.key === "status"
-                ? (status: string) => {
-                    const statusConfig: Record<
-                      string,
-                      { className: string; text: string }
-                    > = {
-                      pending: {
-                        className: "status-tag status-tag-pending",
-                        text: "대기",
-                      },
-                      transferred: {
-                        className: "status-tag status-tag-transferred",
-                        text: "이관됨",
-                      },
-                    };
-                    const config = statusConfig[status] || {
-                      className: "",
-                      text: status,
-                    };
-                    return (
-                      <span className={config.className}>{config.text}</span>
-                    );
-                  }
-                : column.key === "cid"
+              column.key === "cid"
                 ? (cid: string) => (
                     <div
                       className="copyable-text"

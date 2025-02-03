@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home/Home";
 import DoctorList from "./pages/DoctorList/DoctorList";
-import ApprovalWaiting from "./pages/MedicalRecordWaiting/MedicalRecordWaiting";
 import MedicalData from "./pages/MedicalData/MedicalData";
 import Login from "./pages/Login/Login";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -9,7 +8,6 @@ import { Web3AuthProvider } from "./contexts/Web3AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
 import UserManagement from "./pages/UserManagement/UserManagement";
 import HospitalManagement from "./pages/HospitalManagement/HospitalManagement";
-import MedicalRecordWaiting from "./pages/MedicalRecordWaiting/MedicalRecordWaiting";
 
 function App() {
   return (
@@ -26,7 +24,6 @@ function App() {
                   element={<Navigate to="/home/doctor-list" replace />}
                 />
                 <Route path="doctor-list" element={<DoctorList />} />
-                <Route path="approval-waiting" element={<ApprovalWaiting />} />
                 <Route
                   path="medical-data-send"
                   element={<MedicalData type="send" />}
@@ -34,10 +31,6 @@ function App() {
                 <Route
                   path="medical-data-receive"
                   element={<MedicalData type="receive" />}
-                />
-                <Route
-                  path="medical-record-waiting"
-                  element={<MedicalRecordWaiting />}
                 />
                 <Route
                   path="/home/user-management"

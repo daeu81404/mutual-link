@@ -19,11 +19,6 @@ export const regularMenuItems: MenuItem[] = [
     label: "의사목록",
   },
   {
-    key: "medicalRecordWaiting",
-    icon: React.createElement(ClockCircleOutlined),
-    label: "진료기록대기",
-  },
-  {
     key: "medicalDataSend",
     icon: React.createElement(UploadOutlined),
     label: "진료데이터(송신)",
