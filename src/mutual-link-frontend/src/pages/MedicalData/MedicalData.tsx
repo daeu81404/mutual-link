@@ -97,23 +97,44 @@ interface Doctor {
   publicKey: string | null;
 }
 
+// IPFS 게이트웨이 목록
+const IPFS_GATEWAYS = [
+  "https://ipfs.io/ipfs/",
+  "https://gateway.pinata.cloud/ipfs/",
+  "https://cloudflare-ipfs.com/ipfs/",
+  "https://dweb.link/ipfs/",
+  "https://ipfs.infura.io/ipfs/",
+];
+
 // IPFS로부터 파일 다운로드
 const downloadFromIPFS = async (cid: string): Promise<Blob> => {
-  try {
-    const response = await fetch(`https://ipfs.io/ipfs/${cid}`, {
-      method: "GET",
-    });
+  let lastError;
 
-    if (!response.ok) {
-      throw new Error(`Network response was not ok: ${response.statusText}`);
+  for (const gateway of IPFS_GATEWAYS) {
+    try {
+      const response = await fetch(`${gateway}${cid}`, {
+        method: "GET",
+        headers: {
+          Accept: "*/*",
+        },
+        mode: "cors",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Network response was not ok: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      return blob;
+    } catch (error) {
+      console.warn(`게이트웨이 ${gateway} 시도 실패:`, error);
+      lastError = error;
+      continue;
     }
-
-    const blob = await response.blob();
-    return blob;
-  } catch (error) {
-    console.error("IPFS 다운로드 실패:", error);
-    throw error;
   }
+
+  console.error("모든 IPFS 게이트웨이 시도 실패");
+  throw lastError;
 };
 
 // AES 키 복호화
