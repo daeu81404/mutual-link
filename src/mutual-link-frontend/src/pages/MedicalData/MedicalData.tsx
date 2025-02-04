@@ -825,6 +825,22 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     return true;
   };
 
+  // 휴대폰 번호 포맷팅 함수
+  const formatPhoneNumber = (phone: string) => {
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.length === 11) {
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 7)}-${cleaned.slice(
+        7
+      )}`;
+    }
+    if (cleaned.length === 10) {
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(
+        6
+      )}`;
+    }
+    return phone;
+  };
+
   const columns: ColumnsType<MedicalRecord> = [
     {
       title: "No",
@@ -847,7 +863,13 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         });
       },
     },
-    { title: "휴대폰", dataIndex: "phone", key: "phone", width: 120 },
+    {
+      title: "휴대폰",
+      dataIndex: "phone",
+      key: "phone",
+      width: 130,
+      render: (phone: string) => formatPhoneNumber(phone),
+    },
     {
       title: "환자명",
       dataIndex: "patientName",

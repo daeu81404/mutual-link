@@ -126,11 +126,33 @@ const UserManagement = () => {
     fetchDoctors();
   }, [pagination.current, pagination.pageSize]);
 
+  // 휴대폰 번호 포맷팅 함수
+  const formatPhoneNumber = (phone: string) => {
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.length === 11) {
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 7)}-${cleaned.slice(
+        7
+      )}`;
+    }
+    if (cleaned.length === 10) {
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(
+        6
+      )}`;
+    }
+    return phone;
+  };
+
   const columns: ColumnsType<User> = [
     { title: "ID", dataIndex: "id", key: "id" },
     { title: "이름", dataIndex: "name", key: "name" },
     { title: "이메일", dataIndex: "email", key: "email" },
-    { title: "전화번호", dataIndex: "phone", key: "phone" },
+    {
+      title: "전화번호",
+      dataIndex: "phone",
+      key: "phone",
+      width: 130,
+      render: (phone: string) => formatPhoneNumber(phone),
+    },
     { title: "병원", dataIndex: "hospital", key: "hospital" },
     { title: "부서", dataIndex: "department", key: "department" },
     { title: "권한", dataIndex: "role", key: "role" },
