@@ -672,9 +672,9 @@ const DoctorList = () => {
             ]}
             style={{
               marginBottom: 0,
-              marginLeft: -24,
-              marginRight: -24,
-              width: "calc(100% + 48px)",
+              marginLeft: -12,
+              marginRight: -12,
+              width: "calc(100% + 24px)",
             }}
           >
             <Input.TextArea
@@ -685,7 +685,7 @@ const DoctorList = () => {
               style={{
                 width: "100%",
                 resize: "none",
-                borderRadius: 0,
+                borderRadius: "6px",
               }}
             />
           </Form.Item>
