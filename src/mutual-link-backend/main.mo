@@ -98,4 +98,22 @@ actor {
       encryptedAesKeyForReceiver
     )
   };
+
+  public query func searchMedicalRecords(
+    doctorName: Text,
+    recordType: Text,
+    searchType: Text,
+    searchQuery: Text,
+    offset: Nat,
+    limit: Nat
+  ) : async MedicalRecordManagement.PagedResult {
+    medicalRecordManager.searchMedicalRecords(
+      doctorName,
+      recordType,
+      searchType,
+      searchQuery,
+      offset,
+      limit
+    )
+  };
 };

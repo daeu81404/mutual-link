@@ -632,7 +632,7 @@ const DoctorList = () => {
 
   return (
     <div style={{ padding: "24px" }}>
-      <div className="table-toolbar">
+      <div className="table-toolbar" style={{ marginBottom: "16px" }}>
         <Select
           defaultValue="name"
           onChange={handleSearchTypeChange}
@@ -644,50 +644,64 @@ const DoctorList = () => {
             { value: "hospital", label: "병원" },
           ]}
         />
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <Search
-            placeholder={`${
-              searchType === "name"
-                ? "의사명"
-                : searchType === "email"
-                ? "이메일"
-                : searchType === "phone"
-                ? "휴대폰 번호 (하이픈 포함/미포함 가능)"
-                : "병원명"
-            }을(를) 입력하세요 (최소 2자 이상)`}
-            value={tempSearchQuery}
-            onChange={handleSearchInputChange}
-            onSearch={handleSearch}
-            allowClear
-            enterButton="검색"
-            style={{ width: 400 }}
-          />
-        </div>
+        <Search
+          placeholder={`${
+            searchType === "name"
+              ? "의사명"
+              : searchType === "email"
+              ? "이메일"
+              : searchType === "phone"
+              ? "휴대폰 번호 (하이픈 포함/미포함 가능)"
+              : "병원명"
+          }을(를) 입력하세요 (최소 2자 이상)`}
+          value={tempSearchQuery}
+          onChange={handleSearchInputChange}
+          onSearch={handleSearch}
+          style={{ width: 400, marginLeft: 8 }}
+          allowClear
+        />
       </div>
-      <Table
-        columns={columns.map((column) => ({
-          ...column,
-          align: column.key === "action" ? "center" : "left",
-          ellipsis: true,
-        }))}
-        dataSource={doctors}
-        rowKey="id"
-        loading={loading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showTotal: (total, range) =>
-            `전체 ${total}개 중 ${range[0]}-${range[1]}`,
-          onChange: (page, pageSize) => {
-            setPagination((prev) => ({
-              ...prev,
-              current: page,
-              pageSize: pageSize,
-            }));
-          },
-        }}
-        scroll={{ x: "max-content" }}
-      />
+      {doctors.length === 0 && searchQuery ? (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "40px 0",
+            color: "#999",
+          }}
+        >
+          <div style={{ fontSize: "16px", marginBottom: "8px" }}>
+            검색 결과가 없습니다
+          </div>
+          <div style={{ fontSize: "14px" }}>
+            다른 검색어로 다시 시도해보세요
+          </div>
+        </div>
+      ) : (
+        <Table
+          columns={columns.map((column) => ({
+            ...column,
+            align: column.key === "action" ? "center" : "left",
+            ellipsis: true,
+          }))}
+          dataSource={doctors}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            ...pagination,
+            showSizeChanger: true,
+            showTotal: (total, range) =>
+              `전체 ${total}개 중 ${range[0]}-${range[1]}`,
+            onChange: (page, pageSize) => {
+              setPagination((prev) => ({
+                ...prev,
+                current: page,
+                pageSize: pageSize,
+              }));
+            },
+          }}
+          scroll={{ x: "max-content" }}
+        />
+      )}
       <Modal
         title="진료의뢰"
         open={isModalOpen}

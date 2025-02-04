@@ -12,6 +12,7 @@ import Order "mo:base/Order";
 import Option "mo:base/Option";
 import Error "mo:base/Error";
 import DoctorManagement "./DoctorManagement";
+import Buffer "mo:base/Buffer";
 
 module {
     public type MedicalRecord = {
@@ -403,6 +404,74 @@ module {
                         };
                     };
                 };
+            };
+        };
+
+        public func searchMedicalRecords(
+            doctorName: Text,
+            recordType: Text,  // "send" or "receive"
+            searchType: Text,  // "patient" or "doctor"
+            searchQuery: Text,
+            offset: Nat,
+            limit: Nat
+        ) : PagedResult {
+            if (Text.size(searchQuery) < 2) {
+                return {
+                    items = [];
+                    total = 0;
+                };
+            };
+
+            let searchQueryLower = Text.toLowercase(searchQuery);
+            
+            let filteredRecords = Buffer.Buffer<MedicalRecord>(0);
+            
+            for (record in records.vals()) {
+                var isMatch = false;
+                
+                // 송신 기록 검색
+                if (recordType == "send" and record.fromDoctor == doctorName) {
+                    if (searchType == "patient" and Text.contains(Text.toLowercase(record.patientName), #text searchQueryLower)) {
+                        isMatch := true;
+                    } else if (searchType == "doctor" and Text.contains(Text.toLowercase(record.toDoctor), #text searchQueryLower)) {
+                        isMatch := true;
+                    };
+                }
+                // 수신 기록 검색
+                else if (recordType == "receive" and record.toDoctor == doctorName) {
+                    if (searchType == "patient" and Text.contains(Text.toLowercase(record.patientName), #text searchQueryLower)) {
+                        isMatch := true;
+                    } else if (searchType == "doctor" and Text.contains(Text.toLowercase(record.fromDoctor), #text searchQueryLower)) {
+                        isMatch := true;
+                    };
+                };
+                
+                if (isMatch) {
+                    filteredRecords.add(record);
+                };
+            };
+
+            // 날짜 기준 내림차순 정렬 (최신순)
+            let sortedRecords = Array.sort<MedicalRecord>(
+                Buffer.toArray(filteredRecords),
+                func(a: MedicalRecord, b: MedicalRecord) : Order.Order {
+                    if (a.date > b.date) { #less } 
+                    else if (a.date < b.date) { #greater } 
+                    else { #equal }
+                }
+            );
+            
+            let total = Array.size(sortedRecords);
+            let start = offset;
+            let end = if (start + limit > total) { total } else { start + limit };
+            let pagedRecords = Array.tabulate<MedicalRecord>(
+                end - start,
+                func(i: Nat) : MedicalRecord { sortedRecords[start + i] }
+            );
+            
+            return {
+                items = pagedRecords;
+                total = total;
             };
         };
     };

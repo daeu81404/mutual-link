@@ -159,9 +159,9 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [backendActor, setBackendActor] = useState<any>(null);
-  const [searchType, setSearchType] = useState<
-    "sender" | "receiver" | "patient"
-  >("patient");
+  const [searchType, setSearchType] = useState<"patient" | "doctor">("patient");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [tempSearchQuery, setTempSearchQuery] = useState("");
   const [viewerModalVisible, setViewerModalVisible] = useState(false);
   const [viewerFiles, setViewerFiles] = useState<{
     dicom: ArrayBuffer[];
@@ -206,6 +206,39 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     department: string;
   } | null>(null);
   const [doctorInfoModalVisible, setDoctorInfoModalVisible] = useState(false);
+  const [noResults, setNoResults] = useState(false);
+
+  // 검색어 입력 핸들러 (디바운스 적용)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (tempSearchQuery !== searchQuery) {
+        handleSearch(tempSearchQuery);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [tempSearchQuery]);
+
+  const handleSearch = (value: string) => {
+    const trimmedValue = value.trim();
+    setSearchQuery(trimmedValue);
+    setPagination((prev) => ({ ...prev, current: 1 }));
+
+    if (trimmedValue === "") {
+      setNoResults(false);
+      return;
+    }
+
+    if (trimmedValue.length < 2) {
+      message.warning("검색어는 최소 2자 이상 입력해주세요.");
+      return;
+    }
+  };
+
+  // 검색 결과 없음 상태 업데이트
+  useEffect(() => {
+    setNoResults(medicalRecords.length === 0 && searchQuery !== "");
+  }, [medicalRecords, searchQuery]);
 
   useEffect(() => {
     const initActor = async () => {
@@ -244,12 +277,25 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         if (!actor || !userInfo?.name) return;
 
         const offset = (pagination.current - 1) * pagination.pageSize;
-        const result = (await actor.getMedicalRecordsByDoctor(
-          userInfo.name,
-          type === "send" ? "sender" : "receiver",
-          offset,
-          pagination.pageSize
-        )) as { items: BackendMedicalRecord[]; total: bigint };
+        let result: { items: BackendMedicalRecord[]; total: bigint };
+
+        if (searchQuery && searchQuery.length >= 2) {
+          result = (await actor.searchMedicalRecords(
+            userInfo.name,
+            type,
+            searchType,
+            searchQuery,
+            offset,
+            pagination.pageSize
+          )) as { items: BackendMedicalRecord[]; total: bigint };
+        } else {
+          result = (await actor.getMedicalRecordsByDoctor(
+            userInfo.name,
+            type === "send" ? "sender" : "receiver",
+            offset,
+            pagination.pageSize
+          )) as { items: BackendMedicalRecord[]; total: bigint };
+        }
 
         const formattedRecords = result.items.map(
           (record: BackendMedicalRecord) => {
@@ -312,15 +358,21 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           total: Number(result.total.toString()),
         }));
       } catch (error) {
-        console.error("진료 기록 조회 실패:", error);
-        message.error("진료 기록을 가져오는데 실패했습니다.");
+        console.error("의료 기록 조회 실패:", error);
+        message.error("의료 기록을 가져오는데 실패했습니다.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchMedicalRecords();
-  }, [userInfo?.name, type, pagination.current, pagination.pageSize]);
+  }, [
+    pagination.current,
+    pagination.pageSize,
+    searchQuery,
+    userInfo?.name,
+    type,
+  ]);
 
   useEffect(() => {
     medicalDataCache.init();
@@ -928,70 +980,91 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   return (
     <>
       <div style={{ padding: "24px" }}>
-        <div className="table-toolbar">
+        <div className="table-toolbar" style={{ marginBottom: "16px" }}>
           <Select
             value={searchType}
-            onChange={(value) => {
-              setSearchType(value);
-              setPagination((prev) => ({ ...prev, current: 1 }));
-            }}
+            onChange={setSearchType}
             style={{ width: 120 }}
             options={[
               { value: "patient", label: "환자명" },
-              ...(type === "receive"
-                ? [{ value: "sender", label: "송신자" }]
-                : [{ value: "receiver", label: "수신자" }]),
+              { value: "doctor", label: type === "send" ? "수신자" : "송신자" },
             ]}
           />
           <Search
-            placeholder="검색어를 입력하세요"
-            onSearch={(value) => console.log(value)}
+            placeholder={`${
+              searchType === "patient"
+                ? "환자명"
+                : type === "send"
+                ? "수신자(의사) 이름"
+                : "송신자(의사) 이름"
+            }으로 검색 (최소 2자 이상)`}
+            value={tempSearchQuery}
+            onChange={(e) => setTempSearchQuery(e.target.value)}
+            style={{ width: 400, marginLeft: 8 }}
             allowClear
           />
         </div>
-        <Table
-          columns={columns.map((column) => ({
-            ...column,
-            align:
-              column.key === "action" || column.key === "status"
-                ? "center"
-                : "left",
-            ellipsis: column.key !== "action",
-            render:
-              column.key === "cid"
-                ? (cid: string) => (
-                    <div
-                      className="copyable-text"
-                      onClick={() => {
-                        navigator.clipboard.writeText(cid);
-                        message.success("CID가 클립보드에 복사되었습니다.");
-                      }}
-                      title={cid}
-                    >
-                      <span>{cid.substring(0, 15)}...</span>
-                      <CopyOutlined />
-                    </div>
-                  )
-                : column.render,
-          }))}
-          dataSource={medicalRecords}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            ...pagination,
-            showSizeChanger: true,
-            showTotal: (total, range) =>
-              `전체 ${total}개 중 ${range[0]}-${range[1]}`,
-            onChange: (page, pageSize) => {
-              setPagination((prev) => ({
-                ...prev,
-                current: page,
-                pageSize: pageSize,
-              }));
-            },
-          }}
-          scroll={{ x: "max-content" }}
-        />
+
+        {noResults ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "40px 0",
+              color: "#999",
+            }}
+          >
+            <div style={{ fontSize: "16px", marginBottom: "8px" }}>
+              검색 결과가 없습니다
+            </div>
+            <div style={{ fontSize: "14px" }}>
+              다른 검색어로 다시 시도해보세요
+            </div>
+          </div>
+        ) : (
+          <Table
+            columns={columns.map((column) => ({
+              ...column,
+              align:
+                column.key === "action" || column.key === "status"
+                  ? "center"
+                  : "left",
+              ellipsis: column.key !== "action",
+              render:
+                column.key === "cid"
+                  ? (cid: string) => (
+                      <div
+                        className="copyable-text"
+                        onClick={() => {
+                          navigator.clipboard.writeText(cid);
+                          message.success("CID가 클립보드에 복사되었습니다.");
+                        }}
+                        title={cid}
+                      >
+                        <span>{cid.substring(0, 15)}...</span>
+                        <CopyOutlined />
+                      </div>
+                    )
+                  : column.render,
+            }))}
+            dataSource={medicalRecords}
+            rowKey="id"
+            loading={loading}
+            pagination={{
+              ...pagination,
+              showSizeChanger: true,
+              showTotal: (total, range) =>
+                `전체 ${total}개 중 ${range[0]}-${range[1]}`,
+              onChange: (page, pageSize) => {
+                setPagination((prev) => ({
+                  ...prev,
+                  current: page,
+                  pageSize: pageSize,
+                }));
+              },
+            }}
+            scroll={{ x: "max-content" }}
+          />
+        )}
       </div>
       <FileViewerModal
         visible={viewerModalVisible}

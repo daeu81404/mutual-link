@@ -7,6 +7,7 @@ import Hash "mo:base/Hash";
 import Array "mo:base/Array";
 import Order "mo:base/Order";
 import Text "mo:base/Text";
+import Buffer "mo:base/Buffer";
 
 module {
     public type Doctor = {
@@ -23,6 +24,31 @@ module {
     public type PagedResult = {
         items: [Doctor];
         total: Nat;
+    };
+
+    public type MedicalRecord = {
+        id: Nat;
+        date: Int;
+        phone: Text;
+        patientName: Text;
+        title: Text;
+        description: Text;
+        fromDoctor: Text;
+        fromEmail: Text;
+        fromHospital: Text;
+        fromDepartment: Text;
+        fromPhone: Text;
+        toDoctor: Text;
+        toEmail: Text;
+        toHospital: Text;
+        toDepartment: Text;
+        toPhone: Text;
+        cid: Text;
+        encryptedAesKeyForSender: Text;
+        encryptedAesKeyForReceiver: Text;
+        status: Text;
+        originalRecordId: ?Nat;
+        transferredDoctors: [Text];
     };
 
     public class DoctorManager() {
