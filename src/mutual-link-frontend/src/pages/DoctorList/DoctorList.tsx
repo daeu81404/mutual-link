@@ -216,6 +216,8 @@ const DoctorList = () => {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [form] = Form.useForm();
   const [searchType, setSearchType] = useState("name");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [tempSearchQuery, setTempSearchQuery] = useState("");
 
   useEffect(() => {
     const initActor = async () => {
@@ -247,17 +249,31 @@ const DoctorList = () => {
       }
     };
 
+    initActor();
+  }, []); // 컴포넌트 마운트 시 한 번만 실행
+
+  useEffect(() => {
     const fetchDoctors = async () => {
+      if (!backendActor) return;
+
       setLoading(true);
       try {
-        const actor = await initActor();
-        if (!actor) return;
-
         const offset = (pagination.current - 1) * pagination.pageSize;
-        const result = (await actor.getPagedDoctors(
-          offset,
-          pagination.pageSize
-        )) as { items: BackendDoctor[]; total: bigint };
+        let result: { items: BackendDoctor[]; total: bigint };
+
+        if (searchQuery && searchQuery.length >= 2) {
+          result = (await backendActor.searchDoctors(
+            searchType,
+            searchQuery,
+            offset,
+            pagination.pageSize
+          )) as { items: BackendDoctor[]; total: bigint };
+        } else {
+          result = (await backendActor.getPagedDoctors(
+            offset,
+            pagination.pageSize
+          )) as { items: BackendDoctor[]; total: bigint };
+        }
 
         const formattedDoctors = result.items.map((doctor: BackendDoctor) => ({
           id: Number(doctor.id.toString()),
@@ -286,8 +302,17 @@ const DoctorList = () => {
       }
     };
 
-    fetchDoctors();
-  }, [pagination.current, pagination.pageSize]);
+    // 검색어가 없고 첫 페이지인 경우 API 호출 방지
+    if (!searchQuery && pagination.current === 1) {
+      fetchDoctors();
+    } else {
+      const debounceTimer = setTimeout(() => {
+        fetchDoctors();
+      }, 300); // 300ms 디바운스 적용
+
+      return () => clearTimeout(debounceTimer);
+    }
+  }, [pagination.current, pagination.pageSize, searchQuery, backendActor]);
 
   const handleUploadClick = () => {
     setIsModalOpen(true);
@@ -382,17 +407,31 @@ const DoctorList = () => {
       );
 
       // 5. ApprovalManager에 데이터 저장
+      console.log("createMedicalRecord 호출 전 파라미터:", {
+        patientName: values.patientName,
+        phone: values.phone,
+        title: values.title,
+        description: values.description,
+        senderEmail: userInfo?.email || "",
+        receiverEmail: selectedDoctor?.email || "",
+        cid,
+        encryptedAesKeyForSender,
+        encryptedAesKeyForReceiver,
+      });
+
       const result = await backendActor.createMedicalRecord(
         values.patientName,
         values.phone,
         values.title,
-        values.description,
+        values.description || "",
         userInfo?.email || "",
         selectedDoctor?.email || "",
         cid,
         encryptedAesKeyForSender,
         encryptedAesKeyForReceiver
       );
+
+      console.log("createMedicalRecord 결과:", result);
 
       if ("ok" in result) {
         // SMS 전송 로직 추가
@@ -425,7 +464,7 @@ const DoctorList = () => {
         message.success("진료 기록이 성공적으로 생성되었습니다.");
         setIsModalOpen(false);
         form.resetFields();
-      } else {
+      } else if ("err" in result) {
         message.error(result.err);
       }
     } catch (error) {
@@ -468,11 +507,31 @@ const DoctorList = () => {
     }
   };
 
+  const formatPhoneNumber = (phone: string) => {
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.length === 11) {
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 7)}-${cleaned.slice(
+        7
+      )}`;
+    }
+    if (cleaned.length === 10) {
+      return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(
+        6
+      )}`;
+    }
+    return phone;
+  };
+
   const columns: ColumnsType<Doctor> = [
     { title: "No", dataIndex: "id", key: "id" },
     { title: "담당의사", dataIndex: "name", key: "name" },
     { title: "이메일", dataIndex: "email", key: "email" },
-    { title: "휴대폰", dataIndex: "phone", key: "phone" },
+    {
+      title: "휴대폰",
+      dataIndex: "phone",
+      key: "phone",
+      render: (phone: string) => formatPhoneNumber(phone),
+    },
     { title: "병원", dataIndex: "hospital", key: "hospital" },
     { title: "부서", dataIndex: "department", key: "department" },
     {
@@ -496,15 +555,87 @@ const DoctorList = () => {
     },
   ];
 
+  const handleSearch = (value: string) => {
+    const trimmedValue = value.trim().replace(/\s+/g, " ");
+
+    if (trimmedValue === "") {
+      setSearchQuery("");
+      setPagination((prev) => ({ ...prev, current: 1 }));
+      return;
+    }
+
+    if (trimmedValue.length < 2) {
+      message.warning("검색어는 최소 2자 이상 입력해주세요.");
+      return;
+    }
+
+    // 검색 조건별 유효성 검사
+    if (searchType === "phone") {
+      const cleaned = trimmedValue.replace(/[^\d-]/g, "");
+      if (cleaned !== trimmedValue) {
+        message.warning("전화번호는 숫자와 하이픈만 입력 가능합니다.");
+        return;
+      }
+      const numbersOnly = cleaned.replace(/-/g, "");
+      if (numbersOnly.length > 11) {
+        message.warning("전화번호는 최대 11자리까지 입력 가능합니다.");
+        return;
+      }
+      setSearchQuery(numbersOnly);
+    } else if (searchType === "email") {
+      // 이메일 검색은 부분 검색 허용
+      setSearchQuery(trimmedValue.toLowerCase());
+    } else {
+      setSearchQuery(trimmedValue);
+    }
+
+    setPagination((prev) => ({ ...prev, current: 1 }));
+  };
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+
+    if (searchType === "phone") {
+      // 전화번호 입력 시 숫자와 하이픈만 허용
+      const cleaned = value.replace(/[^\d-]/g, "");
+      if (cleaned !== value) {
+        return;
+      }
+      // 숫자만 추출하여 길이 체크
+      const numbersOnly = cleaned.replace(/-/g, "");
+      if (numbersOnly.length > 11) {
+        return;
+      }
+      // 자동 하이픈 추가
+      let formatted = cleaned;
+      if (numbersOnly.length > 3) {
+        formatted = numbersOnly.slice(0, 3) + "-" + numbersOnly.slice(3);
+      }
+      if (numbersOnly.length > 7) {
+        formatted = formatted.slice(0, 8) + "-" + formatted.slice(8);
+      }
+      setTempSearchQuery(formatted);
+    } else if (searchType === "email") {
+      // 이메일 입력 시 공백만 제거
+      setTempSearchQuery(value.replace(/\s/g, "").toLowerCase());
+    } else {
+      setTempSearchQuery(value);
+    }
+  };
+
+  const handleSearchTypeChange = (value: string) => {
+    setSearchType(value);
+    setTempSearchQuery("");
+    setSearchQuery("");
+    setPagination((prev) => ({ ...prev, current: 1 }));
+  };
+
   return (
     <div style={{ padding: "24px" }}>
       <div className="table-toolbar">
         <Select
           defaultValue="name"
-          onChange={(value) => {
-            setSearchType(value);
-            setPagination((prev) => ({ ...prev, current: 1 }));
-          }}
+          onChange={handleSearchTypeChange}
           style={{ width: 120 }}
           options={[
             { value: "name", label: "의사명" },
@@ -513,11 +644,25 @@ const DoctorList = () => {
             { value: "hospital", label: "병원" },
           ]}
         />
-        <Search
-          placeholder="검색어를 입력하세요"
-          onSearch={(value: string) => console.log(value)}
-          allowClear
-        />
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <Search
+            placeholder={`${
+              searchType === "name"
+                ? "의사명"
+                : searchType === "email"
+                ? "이메일"
+                : searchType === "phone"
+                ? "휴대폰 번호 (하이픈 포함/미포함 가능)"
+                : "병원명"
+            }을(를) 입력하세요 (최소 2자 이상)`}
+            value={tempSearchQuery}
+            onChange={handleSearchInputChange}
+            onSearch={handleSearch}
+            allowClear
+            enterButton="검색"
+            style={{ width: 400 }}
+          />
+        </div>
       </div>
       <Table
         columns={columns.map((column) => ({

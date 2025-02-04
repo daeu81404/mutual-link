@@ -35,6 +35,10 @@ actor {
     doctorManager.getDoctorByEmail(email)
   };
 
+  public query func searchDoctors(searchType: Text, searchQuery: Text, offset: Nat, limit: Nat) : async DoctorManagement.PagedResult {
+    doctorManager.searchDoctors(searchType, searchQuery, offset, limit)
+  };
+
   public shared (_) func createMedicalRecord(
     patientName: Text,
     patientPhone: Text,

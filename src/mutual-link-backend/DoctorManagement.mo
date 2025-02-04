@@ -29,6 +29,18 @@ module {
         private var doctors = HashMap.HashMap<Nat, Doctor>(1, Nat.equal, Hash.hash);
         private var nextId : Nat = 1;
 
+        // 전화번호에서 하이픈 제거하는 함수
+        private func removeHyphens(phone: Text) : Text {
+            let chars = phone.chars();
+            var result = "";
+            for (c in chars) {
+                if (c != '-') {
+                    result := result # Text.fromChar(c);
+                };
+            };
+            result
+        };
+
         public func createDoctor(doctor: Doctor) : Result.Result<Doctor, Text> {
             let id = nextId;
             nextId += 1;
@@ -37,7 +49,7 @@ module {
                 id = id;
                 name = doctor.name;
                 email = doctor.email;
-                phone = doctor.phone;
+                phone = removeHyphens(doctor.phone);
                 hospital = doctor.hospital;
                 department = doctor.department;
                 role = doctor.role;
@@ -56,7 +68,7 @@ module {
                         id = doctor.id;
                         name = doctor.name;
                         email = doctor.email;
-                        phone = doctor.phone;
+                        phone = removeHyphens(doctor.phone);
                         hospital = doctor.hospital;
                         department = doctor.department;
                         role = doctor.role;
@@ -112,6 +124,68 @@ module {
             Array.find<Doctor>(doctorsArray, func(doc: Doctor) : Bool {
                 doc.email == email
             })
+        };
+
+        public func searchDoctors(searchType: Text, searchQuery: Text, offset: Nat, limit: Nat) : PagedResult {
+            if (Text.size(searchQuery) < 2) {
+                return {
+                    items = [];
+                    total = 0;
+                };
+            };
+
+            let allDoctors = Iter.toArray(doctors.vals());
+            
+            // 검색어 전처리 (소문자 변환)
+            let normalizedQuery = Text.toLowercase(searchQuery);
+            
+            // 검색 조건에 따른 필터링
+            let filteredDoctors = Array.filter<Doctor>(
+                allDoctors,
+                func(doc: Doctor) : Bool {
+                    switch (searchType) {
+                        case "name" { 
+                            Text.contains(Text.toLowercase(doc.name), #text normalizedQuery)
+                        };
+                        case "email" { 
+                            Text.contains(Text.toLowercase(doc.email), #text normalizedQuery)
+                        };
+                        case "phone" {
+                            // 전화번호는 이미 하이픈이 제거된 상태로 저장되어 있음
+                            let queryPhone = removeHyphens(searchQuery);
+                            Text.contains(doc.phone, #text queryPhone)
+                        };
+                        case "hospital" { 
+                            Text.contains(Text.toLowercase(doc.hospital), #text normalizedQuery)
+                        };
+                        case _ { false };
+                    }
+                }
+            );
+
+            // ID 기준 내림차순 정렬
+            let sortedDoctors = Array.sort<Doctor>(
+                filteredDoctors,
+                func(a: Doctor, b: Doctor) : Order.Order {
+                    if (a.id > b.id) { #less } 
+                    else if (a.id < b.id) { #greater } 
+                    else { #equal }
+                }
+            );
+
+            // 페이지네이션 적용
+            let total = sortedDoctors.size();
+            let start = if (offset >= total) { total } else { offset };
+            let end = if (start + limit > total) { total } else { start + limit };
+            let pagedDoctors = Array.tabulate<Doctor>(
+                end - start,
+                func(i: Nat) : Doctor { sortedDoctors[start + i] }
+            );
+
+            {
+                items = pagedDoctors;
+                total = total;
+            }
         };
 
         public func updateDoctorPublicKey(email: Text, publicKey: ?Text) : Result.Result<Doctor, Text> {
