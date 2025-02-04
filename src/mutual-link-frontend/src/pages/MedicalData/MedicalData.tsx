@@ -98,43 +98,33 @@ interface Doctor {
 }
 
 // IPFS 게이트웨이 목록
-const IPFS_GATEWAYS = [
-  "https://gateway.pinata.cloud/ipfs/",
-  "https://ipfs.io/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
-  "https://dweb.link/ipfs/",
-  "https://ipfs.infura.io/ipfs/",
-];
+const IPFS_GATEWAYS = ["https://ipfs.infura.io:5001/api/v0/cat?arg="];
 
 // IPFS로부터 파일 다운로드
 const downloadFromIPFS = async (cid: string): Promise<Blob> => {
-  let lastError;
+  try {
+    const response = await fetch(`${IPFS_GATEWAYS[0]}${cid}`, {
+      method: "POST",
+      headers: {
+        Authorization:
+          "Basic " +
+          btoa(
+            "52f7d11b90ec45f1ac9912d0fb864695:248a2ce514834460a25058bf8068e740"
+          ),
+      },
+    });
 
-  for (const gateway of IPFS_GATEWAYS) {
-    try {
-      const response = await fetch(`${gateway}${cid}`, {
-        method: "GET",
-        headers: {
-          Accept: "*/*",
-        },
-        mode: "cors",
-      });
-
-      if (!response.ok) {
-        throw new Error(`Network response was not ok: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      return blob;
-    } catch (error) {
-      console.warn(`게이트웨이 ${gateway} 시도 실패:`, error);
-      lastError = error;
-      continue;
+    if (!response.ok) {
+      throw new Error(`Network response was not ok: ${response.statusText}`);
     }
-  }
 
-  console.error("모든 IPFS 게이트웨이 시도 실패");
-  throw lastError;
+    // 직접 blob으로 변환
+    const blob = await response.blob();
+    return blob;
+  } catch (error) {
+    console.error("IPFS 다운로드 실패:", error);
+    throw error;
+  }
 };
 
 // AES 키 복호화
