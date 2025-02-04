@@ -353,7 +353,15 @@ const UserManagement = () => {
           overflow: "auto",
         }}
       >
-        <Form form={form} layout="vertical">
+        <Form
+          form={form}
+          layout="vertical"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+          }}
+        >
           {editingUser && (
             <Form.Item
               name="id"
@@ -366,47 +374,121 @@ const UserManagement = () => {
           <Form.Item
             name="name"
             label="이름"
-            rules={[{ required: true, message: "이름을 입력하세요" }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="email"
-            label="이메일"
             rules={[
-              { required: true, message: "이메일을 입력하세요" },
-              { type: "email", message: "올바른 이메일 형식이 아닙니다" },
+              { required: true, message: "이름을 입력하세요" },
+              { min: 2, message: "이름은 최소 2자 이상이어야 합니다" },
+              { max: 50, message: "이름은 최대 50자까지 입력 가능합니다" },
+              {
+                pattern: /^[가-힣a-zA-Z\s]+$/,
+                message: "이름은 한글과 영문만 입력 가능합니다",
+              },
+              {
+                whitespace: true,
+                message: "이름은 공백만으로 구성될 수 없습니다",
+              },
             ]}
           >
-            <Input />
+            <Input maxLength={50} />
           </Form.Item>
-          <Form.Item
-            name="phone"
-            label="전화번호"
-            rules={[{ required: true, message: "전화번호를 입력하세요" }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="hospital"
-            label="병원"
-            rules={[{ required: true, message: "병원을 입력하세요" }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="department"
-            label="부서"
-            rules={[{ required: true, message: "부서를 입력하세요" }]}
-          >
-            <Input />
-          </Form.Item>
+          <div style={{ display: "flex", gap: "16px" }}>
+            <Form.Item
+              name="email"
+              label="이메일"
+              rules={[
+                { required: true, message: "이메일을 입력하세요" },
+                { type: "email", message: "올바른 이메일 형식이 아닙니다" },
+                {
+                  max: 100,
+                  message: "이메일은 최대 100자까지 입력 가능합니다",
+                },
+                {
+                  whitespace: true,
+                  message: "이메일은 공백을 포함할 수 없습니다",
+                },
+              ]}
+              style={{ flex: 1.2 }}
+            >
+              <Input maxLength={100} />
+            </Form.Item>
+            <Form.Item
+              name="phone"
+              label="전화번호"
+              rules={[
+                { required: true, message: "전화번호를 입력하세요" },
+                {
+                  pattern: /^01([0|1|6|7|8|9])-?([0-9]{3,4})-?([0-9]{4})$/,
+                  message: "올바른 전화번호 형식이 아닙니다",
+                },
+              ]}
+              style={{ flex: 0.8 }}
+            >
+              <Input
+                maxLength={13}
+                onChange={(e) => {
+                  // 자동으로 하이픈 추가
+                  const value = e.target.value.replace(/[^0-9]/g, "");
+                  if (value.length <= 11) {
+                    let formattedValue = value;
+                    if (value.length > 3) {
+                      formattedValue = value.slice(0, 3) + "-" + value.slice(3);
+                    }
+                    if (value.length > 7) {
+                      formattedValue =
+                        formattedValue.slice(0, 8) +
+                        "-" +
+                        formattedValue.slice(8);
+                    }
+                    form.setFieldsValue({ phone: formattedValue });
+                  }
+                }}
+                placeholder="010-0000-0000"
+              />
+            </Form.Item>
+          </div>
+          <div style={{ display: "flex", gap: "16px" }}>
+            <Form.Item
+              name="hospital"
+              label="병원"
+              rules={[
+                { required: true, message: "병원을 입력하세요" },
+                { min: 2, message: "병원명은 최소 2자 이상이어야 합니다" },
+                {
+                  max: 100,
+                  message: "병원명은 최대 100자까지 입력 가능합니다",
+                },
+                {
+                  whitespace: true,
+                  message: "병원명은 공백만으로 구성될 수 없습니다",
+                },
+              ]}
+              style={{ flex: 1.2 }}
+            >
+              <Input maxLength={100} />
+            </Form.Item>
+            <Form.Item
+              name="department"
+              label="부서"
+              rules={[
+                { required: true, message: "부서를 입력하세요" },
+                { min: 2, message: "부서명은 최소 2자 이상이어야 합니다" },
+                { max: 50, message: "부서명은 최대 50자까지 입력 가능합니다" },
+                {
+                  whitespace: true,
+                  message: "부서명은 공백만으로 구성될 수 없습니다",
+                },
+              ]}
+              style={{ flex: 0.8 }}
+            >
+              <Input maxLength={50} />
+            </Form.Item>
+          </div>
           <Form.Item
             label="권한"
             name="role"
             rules={[{ required: true, message: "권한을 선택해주세요" }]}
+            style={{ width: "50%" }}
           >
-            <Select>
+            <Select style={{ width: "100%" }}>
               <Select.Option value="admin">관리자</Select.Option>
               <Select.Option value="user">일반 사용자</Select.Option>
             </Select>
