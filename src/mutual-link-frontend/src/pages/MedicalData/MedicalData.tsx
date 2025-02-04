@@ -161,7 +161,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   const [backendActor, setBackendActor] = useState<any>(null);
   const [searchType, setSearchType] = useState<
     "sender" | "receiver" | "patient"
-  >(type === "send" ? "receiver" : "sender");
+  >("patient");
   const [viewerModalVisible, setViewerModalVisible] = useState(false);
   const [viewerFiles, setViewerFiles] = useState<{
     dicom: ArrayBuffer[];
@@ -935,14 +935,12 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
               setSearchType(value);
               setPagination((prev) => ({ ...prev, current: 1 }));
             }}
+            style={{ width: 120 }}
             options={[
+              { value: "patient", label: "환자명" },
               ...(type === "receive"
                 ? [{ value: "sender", label: "송신자" }]
-                : []),
-              ...(type === "send"
-                ? [{ value: "receiver", label: "수신자" }]
-                : []),
-              { value: "patient", label: "환자명" },
+                : [{ value: "receiver", label: "수신자" }]),
             ]}
           />
           <Search
