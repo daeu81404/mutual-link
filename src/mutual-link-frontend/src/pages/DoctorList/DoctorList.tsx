@@ -21,6 +21,7 @@ import { UploadOutlined } from "@ant-design/icons";
 import CryptoJS from "crypto-js";
 import { useAuth } from "@/contexts/AuthContext";
 import * as eccrypto from "@toruslabs/eccrypto";
+import { saveReferralMetadata } from "../../firebase/referral";
 
 const { Search } = AntInput;
 
@@ -434,6 +435,26 @@ const DoctorList = () => {
       console.log("createMedicalRecord 결과:", result);
 
       if ("ok" in result) {
+        // Firebase에 메타데이터 저장
+        try {
+          console.log("진료의뢰 생성 결과:", result.ok); // 구조 확인을 위한 로그
+          const referralId = result.ok.id
+            ? result.ok.id.toString()
+            : result.ok.toString();
+
+          await saveReferralMetadata({
+            referralId,
+            doctorName: selectedDoctor.name,
+            hospitalName: selectedDoctor.hospital,
+            department: selectedDoctor.department,
+            patientName: values.patientName,
+            patientPhone: values.phone,
+          });
+        } catch (error) {
+          console.error("Firebase 메타데이터 저장 실패:", error);
+          message.warning("메타데이터 저장에 실패했습니다.");
+        }
+
         // SMS 전송 로직 추가
         const smsMessage = `${userInfo?.name}님이 전송한 [${values.patientName}]의료정보 도착\nhttps://medi-poc.vercel.app/to`;
         try {

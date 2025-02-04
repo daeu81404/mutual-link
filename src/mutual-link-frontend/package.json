@@ -31,6 +31,7 @@
     "crypto-js": "^4.2.0",
     "dicom-parser": "^1.8.21",
     "ethers": "^6.13.5",
+    "firebase": "^11.2.0",
     "hammerjs": "^2.0.8",
     "jszip": "^3.10.1",
     "pdfjs-dist": "3.11.174",
