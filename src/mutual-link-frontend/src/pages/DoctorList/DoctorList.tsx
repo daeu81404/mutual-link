@@ -398,7 +398,11 @@ const DoctorList = () => {
         // SMS 전송 로직 추가
         const smsMessage = `${userInfo?.name}님이 전송한 [${values.patientName}]의료정보 도착\nhttps://medi-poc.vercel.app/to`;
         try {
-          await fetch(
+          // 전화번호에서 하이픈 제거
+          const phoneNumber = values.phone.replace(/-/g, "");
+          console.log("SMS 전송 시도:", { phoneNumber, message: smsMessage });
+
+          const response = await fetch(
             "https://8oxqti6xl1.execute-api.ap-northeast-2.amazonaws.com/default/sms",
             {
               method: "POST",
@@ -408,10 +412,11 @@ const DoctorList = () => {
               },
               body: JSON.stringify({
                 message: smsMessage,
-                phoneNumber: values.phone,
+                phoneNumber: phoneNumber,
               }),
             }
           );
+          console.log("SMS 전송 응답:", response);
         } catch (error) {
           console.error("SMS 전송 실패:", error);
           message.warning("SMS 전송에 실패했습니다.");
@@ -579,37 +584,92 @@ const DoctorList = () => {
             flexDirection: "column",
             gap: "16px",
           }}
+          validateTrigger={["onChange", "onBlur"]}
         >
           <Form.Item
             label="제목"
             name="title"
-            rules={[{ required: true, message: "제목을 입력해주세요" }]}
+            rules={[
+              { required: true, message: "제목을 입력해주세요" },
+              { min: 2, message: "제목은 최소 2자 이상이어야 합니다" },
+              { max: 100, message: "제목은 최대 100자까지 입력 가능합니다" },
+              {
+                whitespace: true,
+                message: "제목은 공백만으로 구성될 수 없습니다",
+              },
+            ]}
             style={{ marginBottom: 0 }}
           >
-            <Input />
+            <Input maxLength={100} showCount />
           </Form.Item>
 
           <Form.Item
             label="환자명"
             name="patientName"
-            rules={[{ required: true, message: "환자명을 입력해주세요" }]}
+            rules={[
+              { required: true, message: "환자명을 입력해주세요" },
+              { min: 2, message: "환자명은 최소 2자 이상이어야 합니다" },
+              { max: 50, message: "환자명은 최대 50자까지 입력 가능합니다" },
+              {
+                whitespace: true,
+                message: "환자명은 공백만으로 구성될 수 없습니다",
+              },
+              {
+                pattern: /^[가-힣a-zA-Z\s]+$/,
+                message: "환자명은 한글과 영문만 입력 가능합니다",
+              },
+            ]}
             style={{ marginBottom: 0 }}
           >
-            <Input />
+            <Input maxLength={50} />
           </Form.Item>
 
           <Form.Item
             label="휴대폰"
             name="phone"
-            rules={[{ required: true, message: "휴대폰 번호를 입력해주세요" }]}
+            rules={[
+              { required: true, message: "휴대폰 번호를 입력해주세요" },
+              {
+                pattern: /^01([0|1|6|7|8|9])-?([0-9]{3,4})-?([0-9]{4})$/,
+                message: "올바른 휴대폰 번호 형식이 아닙니다",
+              },
+            ]}
             style={{ marginBottom: 0 }}
           >
-            <Input />
+            <Input
+              maxLength={13}
+              onChange={(e) => {
+                // 자동으로 하이픈 추가
+                const value = e.target.value.replace(/[^0-9]/g, "");
+                if (value.length <= 11) {
+                  let formattedValue = value;
+                  if (value.length > 3) {
+                    formattedValue = value.slice(0, 3) + "-" + value.slice(3);
+                  }
+                  if (value.length > 7) {
+                    formattedValue =
+                      formattedValue.slice(0, 8) +
+                      "-" +
+                      formattedValue.slice(8);
+                  }
+                  form.setFieldsValue({ phone: formattedValue });
+                }
+              }}
+              placeholder="010-0000-0000"
+            />
           </Form.Item>
 
           <Form.Item
             label="소견"
             name="description"
+            rules={[
+              { min: 10, message: "소견 입력 시 최소 10자 이상 입력해주세요" },
+              { max: 2000, message: "소견은 최대 2000자까지 입력 가능합니다" },
+              {
+                whitespace: true,
+                message: "소견은 공백만으로 구성될 수 없습니다",
+              },
+            ]}
             style={{
               marginBottom: 0,
               marginLeft: -24,
@@ -619,6 +679,9 @@ const DoctorList = () => {
           >
             <Input.TextArea
               rows={6}
+              maxLength={2000}
+              showCount
+              placeholder="소견을 입력해주세요 (선택사항)"
               style={{
                 width: "100%",
                 resize: "none",
@@ -630,7 +693,43 @@ const DoctorList = () => {
           <Form.Item
             label="업로드 할 파일"
             name="files"
-            rules={[{ required: true, message: "파일을 선택해주세요" }]}
+            rules={[
+              { required: true, message: "파일을 선택해주세요" },
+              {
+                validator: async (_, fileList) => {
+                  if (
+                    !fileList ||
+                    !fileList.fileList ||
+                    fileList.fileList.length === 0
+                  ) {
+                    return Promise.reject(new Error("파일을 선택해주세요"));
+                  }
+                  const file = fileList.fileList[0].originFileObj;
+                  if (!file)
+                    return Promise.reject(new Error("파일을 찾을 수 없습니다"));
+
+                  // 파일 크기 체크 (100MB 제한)
+                  if (file.size > 100 * 1024 * 1024) {
+                    return Promise.reject(
+                      new Error("파일 크기는 100MB를 초과할 수 없습니다")
+                    );
+                  }
+
+                  // ZIP 파일 검증
+                  const isZip =
+                    file.type === "application/zip" ||
+                    file.type === "application/x-zip-compressed" ||
+                    file.name.endsWith(".zip");
+                  if (!isZip) {
+                    return Promise.reject(
+                      new Error("ZIP 파일만 업로드 가능합니다")
+                    );
+                  }
+
+                  return Promise.resolve();
+                },
+              },
+            ]}
             style={{ marginBottom: 0 }}
           >
             <Upload.Dragger
@@ -675,6 +774,8 @@ const DoctorList = () => {
                 <br />
                 압축파일 안에는 [dicom, jpg, png, gif, bmp, webp, pdf] 파일만
                 포함 가능합니다.
+                <br />
+                최대 파일 크기: 100MB
               </p>
             </Upload.Dragger>
           </Form.Item>
