@@ -505,6 +505,7 @@ const DoctorList = () => {
             setSearchType(value);
             setPagination((prev) => ({ ...prev, current: 1 }));
           }}
+          style={{ width: 120 }}
           options={[
             { value: "name", label: "의사명" },
             { value: "email", label: "이메일" },
