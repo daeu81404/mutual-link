@@ -37,6 +37,7 @@ actor {
 
   public shared (_) func createMedicalRecord(
     patientName: Text,
+    patientPhone: Text,
     title: Text,
     description: Text,
     fromEmail: Text,
@@ -47,6 +48,7 @@ actor {
   ) : async Result.Result<MedicalRecordManagement.MedicalRecord, Text> {
     medicalRecordManager.createMedicalRecord(
       patientName,
+      patientPhone,
       title,
       description,
       fromEmail,

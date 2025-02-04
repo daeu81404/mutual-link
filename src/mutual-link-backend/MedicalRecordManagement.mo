@@ -18,6 +18,7 @@ module {
         id: Nat;
         date: Int;
         patientName: Text;
+        patientPhone: Text;
         title: Text;
         description: Text;
         fromDoctor: Text;
@@ -65,6 +66,7 @@ module {
 
         public func createMedicalRecord(
             patientName: Text,
+            patientPhone: Text,
             title: Text,
             description: Text,
             fromEmail: Text,
@@ -86,6 +88,7 @@ module {
                                 id = nextId;
                                 date = Time.now();
                                 patientName = patientName;
+                                patientPhone = patientPhone;
                                 title = title;
                                 description = description;
                                 fromDoctor = sender.name;
@@ -120,11 +123,11 @@ module {
             switch (records.get(id)) {
                 case (null) { #err("해당 ID의 진료 기록을 찾을 수 없습니다.") };
                 case (?record) {
-                    let updatedRecord = {
+                    let updatedRecord: MedicalRecord = {
                         id = record.id;
                         date = record.date;
-                        phone = record.phone;
                         patientName = record.patientName;
+                        patientPhone = record.patientPhone;
                         title = record.title;
                         description = record.description;
                         fromDoctor = record.fromDoctor;
@@ -137,6 +140,7 @@ module {
                         toHospital = record.toHospital;
                         toDepartment = record.toDepartment;
                         toPhone = record.toPhone;
+                        phone = record.phone;
                         cid = record.cid;
                         encryptedAesKeyForSender = record.encryptedAesKeyForSender;
                         encryptedAesKeyForReceiver = record.encryptedAesKeyForReceiver;
@@ -335,10 +339,11 @@ module {
                                             };
                                         };
 
-                                        let newRecord = {
+                                        let newRecord: MedicalRecord = {
                                             id = nextId;
                                             date = Time.now();
                                             patientName = record.patientName;
+                                            patientPhone = record.patientPhone;
                                             title = record.title;
                                             description = record.description;
                                             fromDoctor = sender.name;
@@ -355,7 +360,7 @@ module {
                                             cid = record.cid;
                                             encryptedAesKeyForSender = encryptedAesKeyForSender;
                                             encryptedAesKeyForReceiver = encryptedAesKeyForReceiver;
-                                            status = "APPROVED";  // 환자 승인 프로세스 구현 전까지는 자동 승인
+                                            status = "APPROVED";
                                             originalRecordId = ?originalId;
                                             transferredDoctors = Array.append<Text>(record.transferredDoctors, [sender.name]);
                                         };
@@ -365,10 +370,11 @@ module {
                                         nextId += 1;
 
                                         // 원본 기록의 상태를 "TRANSFERRED"로 업데이트
-                                        let updatedRecord = {
+                                        let updatedRecord: MedicalRecord = {
                                             id = record.id;
                                             date = record.date;
                                             patientName = record.patientName;
+                                            patientPhone = record.patientPhone;
                                             title = record.title;
                                             description = record.description;
                                             fromDoctor = record.fromDoctor;

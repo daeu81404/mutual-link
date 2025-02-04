@@ -384,6 +384,7 @@ const DoctorList = () => {
       // 5. ApprovalManager에 데이터 저장
       const result = await backendActor.createMedicalRecord(
         values.patientName,
+        values.phone,
         values.title,
         values.description,
         userInfo?.email || "",
@@ -394,6 +395,28 @@ const DoctorList = () => {
       );
 
       if ("ok" in result) {
+        // SMS 전송 로직 추가
+        const smsMessage = `${userInfo?.name}님이 전송한 [${values.patientName}]의료정보 도착\nhttps://medi-poc.vercel.app/to`;
+        try {
+          await fetch(
+            "https://8oxqti6xl1.execute-api.ap-northeast-2.amazonaws.com/default/sms",
+            {
+              method: "POST",
+              mode: "no-cors",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                message: smsMessage,
+                phoneNumber: values.phone,
+              }),
+            }
+          );
+        } catch (error) {
+          console.error("SMS 전송 실패:", error);
+          message.warning("SMS 전송에 실패했습니다.");
+        }
+
         message.success("진료 기록이 성공적으로 생성되었습니다.");
         setIsModalOpen(false);
         form.resetFields();
