@@ -328,7 +328,16 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
 
             return {
               id: Number(record.id.toString()),
-              date: Number(record.date.toString()) / 1000000,
+              date: (() => {
+                const originalDate = record.date.toString();
+                const milliseconds = Math.floor(Number(originalDate) / 1000000);
+                console.log("Backend date conversion:", {
+                  original: originalDate,
+                  milliseconds: milliseconds,
+                  date: new Date(milliseconds),
+                });
+                return milliseconds;
+              })(),
               phone: record.phone,
               patientName: record.patientName,
               title: record.title,
@@ -853,16 +862,19 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     },
     {
       title: "생성일",
+      dataIndex: "date",
       key: "date",
-      width: 120,
       render: (_: unknown, record: MedicalRecord) => {
-        const date = new Date(Number(record.date) / 1000000); // nanoseconds to milliseconds
+        console.log("Original date value:", record.date);
+        const date = new Date(Number(record.date)); // 이미 밀리초로 변환된 값이므로 그대로 사용
+        console.log("Final date object:", date);
         return date.toLocaleString("ko-KR", {
-          year: "2-digit",
+          year: "numeric",
           month: "2-digit",
           day: "2-digit",
           hour: "2-digit",
           minute: "2-digit",
+          hour12: false,
         });
       },
     },
@@ -1274,12 +1286,13 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
               <div
                 style={{ width: "180px", fontSize: "14px", fontWeight: "500" }}
               >
-                {new Date(history.date).toLocaleString("ko-KR", {
+                {new Date(Number(history.date)).toLocaleString("ko-KR", {
                   year: "2-digit",
                   month: "2-digit",
                   day: "2-digit",
                   hour: "2-digit",
                   minute: "2-digit",
+                  hour12: false,
                 })}
               </div>
             ),
