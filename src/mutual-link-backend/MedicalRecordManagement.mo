@@ -195,8 +195,11 @@ module {
                     // 송신자인 경우: 모든 상태의 기록 표시
                     record.fromDoctor == doctorName
                 } else {
-                    // 수신자인 경우: APPROVED 상태의 기록만 표시
-                    record.toDoctor == doctorName and record.status == "APPROVED"
+                    // 수신자인 경우: 
+                    // 1) 현재 수신자이고 APPROVED 상태이거나
+                    // 2) 현재 수신자이고 TRANSFERRED 상태인 경우 표시
+                    record.toDoctor == doctorName and 
+                    (record.status == "APPROVED" or record.status == "TRANSFERRED")
                 }
             });
 
