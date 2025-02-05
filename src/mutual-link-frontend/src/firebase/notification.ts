@@ -11,6 +11,8 @@ import {
 import { database } from "./config";
 import { getAuth } from "firebase/auth";
 import { ReferralStatus } from "./referral";
+import { Actor, HttpAgent } from "@dfinity/agent";
+import { idlFactory } from "../../../declarations/mutual-link-backend/mutual-link-backend.did.js";
 
 interface ReferralNotification {
   referralId: string;
@@ -106,6 +108,65 @@ const checkNotificationHistory = async (
   }
 };
 
+const initActor = async () => {
+  try {
+    const currentHost = window.location.hostname;
+    const host = currentHost.includes("localhost")
+      ? `http://${currentHost}:4943`
+      : "http://127.0.0.1:4943";
+
+    const agent = new HttpAgent({ host });
+
+    if (host.includes("localhost") || host.includes("127.0.0.1")) {
+      await agent.fetchRootKey();
+    }
+
+    const canisterId = "bkyz2-fmaaa-aaaaa-qaaaq-cai";
+
+    return Actor.createActor(idlFactory, {
+      agent,
+      canisterId,
+    });
+  } catch (error) {
+    console.error("Actor 초기화 실패:", error);
+    throw error;
+  }
+};
+
+// 의료기록 상태 업데이트 함수
+const updateMedicalRecordStatus = async (
+  referralId: string,
+  status: string
+) => {
+  try {
+    const actor = await initActor();
+    await actor.updateMedicalRecordStatus(Number(referralId), status);
+    console.log("[DEBUG] 의료기록 상태 업데이트 완료:", referralId);
+  } catch (error) {
+    console.error("[DEBUG] 의료기록 상태 업데이트 실패:", error);
+  }
+};
+
+// 알림 처리 함수
+const handleNotification = async (
+  userEmail: string,
+  referralId: string,
+  referral: ReferralNotification,
+  onUpdate: (data: any) => void
+) => {
+  // notification_history에 없는 경우에만 알림 생성
+  const alreadyChecked = await checkNotificationHistory(userEmail, referralId);
+  if (!alreadyChecked) {
+    console.log("[DEBUG] 상태 변경 감지:", referralId, referral.status);
+    onUpdate(referral);
+
+    // 의료기록 상태 자동 업데이트
+    if (referral.status === "APPROVED") {
+      await updateMedicalRecordStatus(referralId, "APPROVED");
+    }
+  }
+};
+
 export const subscribeToReferralUpdates = (
   userEmail: string,
   onUpdate: (data: any) => void
@@ -131,17 +192,9 @@ export const subscribeToReferralUpdates = (
             updatedAt: referral.updatedAt,
           });
 
-          // status가 PENDING이 아닌 경우 알림 생성
-          if (status !== "PENDING") {
-            // notification_history에 없는 경우에만 알림 생성
-            const alreadyChecked = await checkNotificationHistory(
-              userEmail,
-              referralId
-            );
-            if (!alreadyChecked) {
-              console.log("[DEBUG] 상태 변경 감지 (신규):", referralId, status);
-              onUpdate(referral);
-            }
+          // status가 APPROVED인 경우 알림 생성 및 의료기록 상태 업데이트
+          if (status === "APPROVED") {
+            await handleNotification(userEmail, referralId, referral, onUpdate);
           }
 
           // 현재 상태 저장
@@ -173,21 +226,9 @@ export const subscribeToReferralUpdates = (
             updatedAt: referral.updatedAt,
           });
 
-          // 상태가 PENDING에서 다른 상태로 변경되었을 때
-          if (prevStatus === "PENDING" && currentStatus !== "PENDING") {
-            // notification_history에 없는 경우에만 알림 생성
-            const alreadyChecked = await checkNotificationHistory(
-              userEmail,
-              referralId
-            );
-            if (!alreadyChecked) {
-              console.log(
-                "[DEBUG] 알림 발생 (실시간):",
-                referralId,
-                currentStatus
-              );
-              onUpdate(referral);
-            }
+          // 상태가 PENDING에서 APPROVED로 변경되었을 때
+          if (prevStatus === "PENDING" && currentStatus === "APPROVED") {
+            await handleNotification(userEmail, referralId, referral, onUpdate);
           }
 
           // 상태 업데이트

@@ -106,7 +106,7 @@ module {
                                 cid = cid;
                                 encryptedAesKeyForSender = encryptedAesKeyForSender;
                                 encryptedAesKeyForReceiver = encryptedAesKeyForReceiver;
-                                status = "APPROVED";  // 환자 승인 프로세스 구현 전까지는 자동 승인
+                                status = "PENDING_APPROVAL";  // 환자 승인 대기 상태로 설정
                                 originalRecordId = null;
                                 transferredDoctors = [sender.name];
                             };
@@ -192,13 +192,11 @@ module {
             // 1. 해당 의사의 진료 기록 필터링
             let filteredRecords = Array.filter<MedicalRecord>(allRecords, func(record: MedicalRecord) : Bool {
                 if (role == "sender") {
-                    // 송신자인 경우:
-                    // 1) 자신이 최초 생성한 기록 또는
-                    // 2) 자신이 이관한 기록
+                    // 송신자인 경우: 모든 상태의 기록 표시
                     record.fromDoctor == doctorName
                 } else {
-                    // 수신자인 경우: 자신이 수신자로 지정된 기록 표시
-                    record.toDoctor == doctorName
+                    // 수신자인 경우: APPROVED 상태의 기록만 표시
+                    record.toDoctor == doctorName and record.status == "APPROVED"
                 }
             });
 

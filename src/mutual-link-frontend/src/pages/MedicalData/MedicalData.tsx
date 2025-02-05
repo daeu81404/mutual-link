@@ -304,7 +304,10 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
             // 모든 페이지에서 상태를 한글로 표시
             switch (record.status) {
               case "PENDING_APPROVAL":
+              case "PENDING":
               case "pending":
+                status = "승인 대기";
+                break;
               case "APPROVED":
                 status = "승인됨";
                 break;
@@ -319,7 +322,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
                 status = "만료됨";
                 break;
               default:
-                status = "승인됨"; // 기본값도 승인됨으로 변경
+                status = "승인 대기"; // 기본값도 승인 대기로 변경
                 break;
             }
 
@@ -931,6 +934,10 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       width: 100,
       render: (status: string) => {
         const statusConfig: Record<string, { color: string; text: string }> = {
+          "승인 대기": {
+            color: "orange",
+            text: "승인 대기",
+          },
           거부됨: {
             color: "red",
             text: "거부됨",
