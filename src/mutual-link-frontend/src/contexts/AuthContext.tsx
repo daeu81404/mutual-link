@@ -10,6 +10,7 @@ import { Spin, message } from "antd";
 import {
   subscribeToReferralUpdates,
   saveNotificationHistory,
+  getUnreadNotifications,
 } from "../firebase/notification";
 
 export interface Notification {
@@ -86,31 +87,112 @@ function AuthProvider({ children }: { children: ReactNode }) {
     setNotifications([]);
   };
 
+  const loadUnreadNotifications = async (email: string) => {
+    try {
+      const unreadNotifications = await getUnreadNotifications(email);
+      console.log("[AUTH] 읽지 않은 알림 로드:", unreadNotifications);
+
+      const notifications: Notification[] = unreadNotifications.map(
+        (referral) => ({
+          id: `${referral.referralId}-${Date.now()}`,
+          title:
+            referral.status === "APPROVED"
+              ? "의료정보 공유 수락"
+              : "의료정보 공유 거절",
+          message:
+            referral.status === "APPROVED"
+              ? `${referral.patientName} 환자가 의료정보 공유를 수락했습니다.`
+              : `${referral.patientName} 환자가 의료정보 공유를 거절했습니다.`,
+          timestamp: referral.updatedAt,
+          read: false,
+          referralId: referral.referralId,
+          status: referral.status,
+        })
+      );
+
+      setNotifications(notifications);
+    } catch (error) {
+      console.error("[AUTH] 읽지 않은 알림 로드 실패:", error);
+    }
+  };
+
   const startNotificationSubscription = (email: string) => {
-    console.log("알림 구독 시작:", email);
+    console.log("[AUTH] 알림 구독 시작:", email);
+
+    loadUnreadNotifications(email);
+
     const unsubscribe = subscribeToReferralUpdates(email, (referral) => {
-      console.log("알림 수신:", referral);
+      console.log("[AUTH] 알림 수신:", {
+        referral,
+        currentNotifications: notifications,
+      });
 
-      // APPROVED 상태인 경우에만 알림 생성
-      if (referral.status === "APPROVED") {
-        const isDuplicate = notifications.some(
-          (n) =>
-            n.referralId === referral.referralId && n.status === referral.status
-        );
+      // 중복 체크를 위한 키 생성
+      const notificationKey = `${referral.referralId}-${referral.status}`;
 
-        if (!isDuplicate) {
-          const newNotification: Notification = {
-            id: `${referral.referralId}-${Date.now()}`,
-            title: "의료정보 공유 수락",
-            message: `${referral.patientName} 환자가 의료정보 공유를 수락했습니다.`,
-            timestamp: new Date().toISOString(),
-            read: false,
-            referralId: referral.referralId,
-            status: referral.status,
-          };
+      // 현재 알림 목록에서 중복 체크
+      const isDuplicate = notifications.some(
+        (n) => `${n.referralId}-${n.status}` === notificationKey
+      );
 
-          setNotifications((prev) => [newNotification, ...prev]);
-        }
+      console.log("[AUTH] 중복 체크:", {
+        notificationKey,
+        isDuplicate,
+        isReceiver: referral.toEmail === email,
+        isSender: referral.fromEmail === email,
+        status: referral.status,
+      });
+
+      // 알림 생성이 필요한 상태인지 확인
+      const shouldCreateNotification =
+        // 수신자이고 APPROVED 상태이면서 중복이 아닌 경우
+        (referral.toEmail === email &&
+          referral.status === "APPROVED" &&
+          !isDuplicate) ||
+        // 송신자이고 REJECTED 상태이면서 중복이 아닌 경우
+        (referral.fromEmail === email &&
+          referral.status === "REJECTED" &&
+          !isDuplicate);
+
+      console.log("[AUTH] 알림 생성 여부:", {
+        shouldCreateNotification,
+        email,
+        status: referral.status,
+      });
+
+      if (shouldCreateNotification) {
+        const newNotification: Notification = {
+          id: `${referral.referralId}-${Date.now()}`,
+          title:
+            referral.status === "APPROVED"
+              ? "의료정보 공유 수락"
+              : "의료정보 공유 거절",
+          message:
+            referral.status === "APPROVED"
+              ? `${referral.patientName} 환자가 의료정보 공유를 수락했습니다.`
+              : `${referral.patientName} 환자가 의료정보 공유를 거절했습니다.`,
+          timestamp: new Date().toISOString(),
+          read: false,
+          referralId: referral.referralId,
+          status: referral.status,
+        };
+
+        console.log("[AUTH] 새 알림 생성:", newNotification);
+
+        setNotifications((prev) => {
+          // 상태 업데이트 직전에 한 번 더 중복 체크
+          const isDuplicateInPrev = prev.some(
+            (n) => `${n.referralId}-${n.status}` === notificationKey
+          );
+
+          if (isDuplicateInPrev) {
+            console.log("[AUTH] 상태 업데이트 직전 중복 발견 - 업데이트 취소");
+            return prev;
+          }
+
+          console.log("[AUTH] 알림 목록 업데이트");
+          return [newNotification, ...prev];
+        });
       }
     });
     setUnsubscribeNotifications(() => unsubscribe);

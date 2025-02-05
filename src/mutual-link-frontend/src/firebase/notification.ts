@@ -154,15 +154,41 @@ const handleNotification = async (
   referral: ReferralNotification,
   onUpdate: (data: any) => void
 ) => {
+  // 이미 알림을 보낸 경우 중복 처리 방지
+  const notificationKey = `${referralId}-${referral.status}`;
+  console.log("[FIREBASE] 알림 처리 시작:", {
+    notificationKey,
+    userEmail,
+    status: referral.status,
+    isInNotifiedSet: notifiedReferrals.has(notificationKey),
+  });
+
+  if (notifiedReferrals.has(notificationKey)) {
+    console.log("[FIREBASE] 이미 처리된 알림 - 처리 중단:", notificationKey);
+    return;
+  }
+
   // notification_history에 없는 경우에만 알림 생성
   const alreadyChecked = await checkNotificationHistory(userEmail, referralId);
-  if (!alreadyChecked) {
-    console.log("[DEBUG] 상태 변경 감지:", referralId, referral.status);
-    onUpdate(referral);
+  console.log("[FIREBASE] 알림 이력 확인:", {
+    referralId,
+    alreadyChecked,
+  });
 
-    // 의료기록 상태 자동 업데이트
-    if (referral.status === "APPROVED") {
-      await updateMedicalRecordStatus(referralId, "APPROVED");
+  if (!alreadyChecked) {
+    console.log("[FIREBASE] 새 알림 처리:", {
+      referralId,
+      status: referral.status,
+    });
+
+    // 알림 처리 완료 표시 (먼저 설정)
+    notifiedReferrals.add(notificationKey);
+
+    // 의료기록 상태 자동 업데이트 및 알림 생성
+    if (referral.status === "APPROVED" || referral.status === "REJECTED") {
+      await updateMedicalRecordStatus(referralId, referral.status);
+      // saveNotificationHistory는 여기서 호출하지 않음
+      onUpdate(referral);
     }
   }
 };
@@ -174,6 +200,9 @@ export const subscribeToReferralUpdates = (
   console.log("[DEBUG] 알림 구독 시작 ====");
   console.log("[DEBUG] 구독 이메일:", userEmail);
 
+  // 구독 시작할 때 Set 초기화
+  notifiedReferrals.clear();
+
   const referralsRef = ref(database, "referrals");
 
   // 초기 상태 로드 및 PENDING에서 변경된 항목 확인
@@ -183,21 +212,22 @@ export const subscribeToReferralUpdates = (
       for (const [referralId, referral] of Object.entries<ReferralNotification>(
         data
       )) {
-        if (referral.toEmail === userEmail) {
+        // 수신자 또는 송신자인 경우 처리
+        if (
+          referral.toEmail === userEmail ||
+          referral.fromEmail === userEmail
+        ) {
           const status = referral.status;
           console.log("[DEBUG] 초기 데이터 확인:", {
             referralId,
             status,
             createdAt: referral.createdAt,
             updatedAt: referral.updatedAt,
+            isReceiver: referral.toEmail === userEmail,
+            isSender: referral.fromEmail === userEmail,
           });
 
-          // status가 APPROVED인 경우 알림 생성 및 의료기록 상태 업데이트
-          if (status === "APPROVED") {
-            await handleNotification(userEmail, referralId, referral, onUpdate);
-          }
-
-          // 현재 상태 저장
+          // 현재 상태만 저장하고 알림은 생성하지 않음
           previousStates.set(referralId, status);
         }
       }
@@ -214,7 +244,11 @@ export const subscribeToReferralUpdates = (
       for (const [referralId, referral] of Object.entries<ReferralNotification>(
         data
       )) {
-        if (referral.toEmail === userEmail) {
+        // 수신자 또는 송신자인 경우 처리
+        if (
+          referral.toEmail === userEmail ||
+          referral.fromEmail === userEmail
+        ) {
           const prevStatus = previousStates.get(referralId);
           const currentStatus = referral.status;
 
@@ -224,11 +258,38 @@ export const subscribeToReferralUpdates = (
             currentStatus,
             createdAt: referral.createdAt,
             updatedAt: referral.updatedAt,
+            isReceiver: referral.toEmail === userEmail,
+            isSender: referral.fromEmail === userEmail,
           });
 
-          // 상태가 PENDING에서 APPROVED로 변경되었을 때
-          if (prevStatus === "PENDING" && currentStatus === "APPROVED") {
-            await handleNotification(userEmail, referralId, referral, onUpdate);
+          // 이전 상태가 있고, 상태가 변경된 경우에만 처리
+          if (prevStatus && prevStatus !== currentStatus) {
+            // 수신자이고 상태가 PENDING에서 APPROVED로 변경되었을 때
+            if (
+              referral.toEmail === userEmail &&
+              prevStatus === "PENDING" &&
+              currentStatus === "APPROVED"
+            ) {
+              await handleNotification(
+                userEmail,
+                referralId,
+                referral,
+                onUpdate
+              );
+            }
+            // 송신자이고 상태가 PENDING에서 REJECTED로 변경되었을 때
+            else if (
+              referral.fromEmail === userEmail &&
+              prevStatus === "PENDING" &&
+              currentStatus === "REJECTED"
+            ) {
+              await handleNotification(
+                userEmail,
+                referralId,
+                referral,
+                onUpdate
+              );
+            }
           }
 
           // 상태 업데이트
@@ -244,6 +305,55 @@ export const subscribeToReferralUpdates = (
   return () => {
     console.log("[DEBUG] 알림 구독 종료 ====");
     previousStates.clear();
+    notifiedReferrals.clear();
     unsubscribe();
   };
+};
+
+// 알림 이력 조회 함수 추가
+export const getUnreadNotifications = async (
+  userEmail: string,
+  referralsRef = ref(database, "referrals")
+): Promise<ReferralNotification[]> => {
+  try {
+    // 모든 referral 데이터 가져오기
+    const referralsSnapshot = await get(referralsRef);
+    if (!referralsSnapshot.exists()) return [];
+
+    const referrals = referralsSnapshot.val();
+    const unreadNotifications: ReferralNotification[] = [];
+
+    // notification_history 조회
+    const historyRef = ref(
+      database,
+      `notification_history/${userEmail.replace(/\./g, "_")}`
+    );
+    const historySnapshot = await get(historyRef);
+    const readHistory = historySnapshot.exists() ? historySnapshot.val() : {};
+
+    // 각 referral에 대해 처리
+    for (const [referralId, referral] of Object.entries<ReferralNotification>(
+      referrals
+    )) {
+      // 이미 읽은 알림은 제외
+      if (readHistory[referralId]) continue;
+
+      // 수신자이고 APPROVED 상태인 경우
+      if (referral.toEmail === userEmail && referral.status === "APPROVED") {
+        unreadNotifications.push({ ...referral, referralId });
+      }
+      // 송신자이고 REJECTED 상태인 경우
+      else if (
+        referral.fromEmail === userEmail &&
+        referral.status === "REJECTED"
+      ) {
+        unreadNotifications.push({ ...referral, referralId });
+      }
+    }
+
+    return unreadNotifications;
+  } catch (error) {
+    console.error("[FIREBASE] 읽지 않은 알림 조회 실패:", error);
+    return [];
+  }
 };
