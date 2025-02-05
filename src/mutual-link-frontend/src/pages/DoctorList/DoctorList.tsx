@@ -450,14 +450,10 @@ const DoctorList = () => {
             patientName: values.patientName,
             patientPhone: values.phone,
           });
-        } catch (error) {
-          console.error("Firebase 메타데이터 저장 실패:", error);
-          message.warning("메타데이터 저장에 실패했습니다.");
-        }
 
-        // SMS 전송 로직 추가
-        const smsMessage = `${userInfo?.name}님이 전송한 [${values.patientName}]의료정보 도착\nhttps://medi-poc.vercel.app/to`;
-        try {
+          // SMS 전송 로직 추가
+          const smsMessage = `${userInfo?.name}님이 전송한 [${values.patientName}]의료정보 도착\nhttps://mutual-link-d70e6.web.app/?referralId=${referralId}`;
+
           // 전화번호에서 하이픈 제거
           const phoneNumber = values.phone.replace(/-/g, "");
           console.log("SMS 전송 시도:", { phoneNumber, message: smsMessage });
@@ -477,14 +473,14 @@ const DoctorList = () => {
             }
           );
           console.log("SMS 전송 응답:", response);
-        } catch (error) {
-          console.error("SMS 전송 실패:", error);
-          message.warning("SMS 전송에 실패했습니다.");
-        }
 
-        message.success("진료 기록이 성공적으로 생성되었습니다.");
-        setIsModalOpen(false);
-        form.resetFields();
+          message.success("진료 기록이 성공적으로 생성되었습니다.");
+          setIsModalOpen(false);
+          form.resetFields();
+        } catch (error) {
+          console.error("Firebase 메타데이터 저장 실패:", error);
+          message.warning("메타데이터 저장에 실패했습니다.");
+        }
       } else if ("err" in result) {
         message.error(result.err);
       }
