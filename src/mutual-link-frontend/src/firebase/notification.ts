@@ -69,7 +69,7 @@ const isValidNotification = (data: any): data is ReferralNotification => {
 };
 
 // 알림 이력 저장 함수
-const saveNotificationHistory = async (
+export const saveNotificationHistory = async (
   userEmail: string,
   referralId: string
 ) => {
@@ -81,8 +81,10 @@ const saveNotificationHistory = async (
     await set(historyRef, {
       notifiedAt: new Date().toISOString(),
     });
+    console.log("[DEBUG] 알림 이력 저장 성공:", referralId);
   } catch (error) {
     console.error("[DEBUG] 알림 이력 저장 실패:", error);
+    throw error;
   }
 };
 
@@ -129,21 +131,17 @@ export const subscribeToReferralUpdates = (
             updatedAt: referral.updatedAt,
           });
 
-          // 이미 알림을 보냈는지 확인
-          const alreadyNotified = await checkNotificationHistory(
-            userEmail,
-            referralId
-          );
-
-          // status가 PENDING이 아니고, createdAt과 updatedAt이 다르고, 아직 알림을 보내지 않은 경우
-          if (
-            status !== "PENDING" &&
-            referral.createdAt !== referral.updatedAt &&
-            !alreadyNotified
-          ) {
-            console.log("[DEBUG] 상태 변경 감지 (신규):", referralId, status);
-            onUpdate(referral);
-            await saveNotificationHistory(userEmail, referralId);
+          // status가 PENDING이 아닌 경우 알림 생성
+          if (status !== "PENDING") {
+            // notification_history에 없는 경우에만 알림 생성
+            const alreadyChecked = await checkNotificationHistory(
+              userEmail,
+              referralId
+            );
+            if (!alreadyChecked) {
+              console.log("[DEBUG] 상태 변경 감지 (신규):", referralId, status);
+              onUpdate(referral);
+            }
           }
 
           // 현재 상태 저장
@@ -175,24 +173,20 @@ export const subscribeToReferralUpdates = (
             updatedAt: referral.updatedAt,
           });
 
-          // 이전 상태가 PENDING이고 현재 상태가 변경되었을 때
+          // 상태가 PENDING에서 다른 상태로 변경되었을 때
           if (prevStatus === "PENDING" && currentStatus !== "PENDING") {
-            // 이미 알림을 보냈는지 확인
-            const alreadyNotified = await checkNotificationHistory(
+            // notification_history에 없는 경우에만 알림 생성
+            const alreadyChecked = await checkNotificationHistory(
               userEmail,
               referralId
             );
-
-            if (!alreadyNotified) {
+            if (!alreadyChecked) {
               console.log(
                 "[DEBUG] 알림 발생 (실시간):",
                 referralId,
                 currentStatus
               );
               onUpdate(referral);
-              await saveNotificationHistory(userEmail, referralId);
-            } else {
-              console.log("[DEBUG] 이미 알림이 발송된 referral:", referralId);
             }
           }
 

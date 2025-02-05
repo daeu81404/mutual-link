@@ -25,7 +25,12 @@ const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
 const { useToken } = theme;
 
-export default function Home() {
+interface HomeProps {
+  notificationCount: number;
+  onNotificationClick: () => void;
+}
+
+const Home = ({ notificationCount, onNotificationClick }: HomeProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const [userInfoModalVisible, setUserInfoModalVisible] = useState(false);
   const navigate = useNavigate();
@@ -133,11 +138,11 @@ export default function Home() {
           </Title>
         </div>
         <Space size="large">
-          <Badge count={5} size="small">
+          <Badge count={notificationCount} offset={[-5, 5]}>
             <Button
               type="text"
               icon={<BellOutlined style={{ fontSize: "20px" }} />}
-              style={{ width: 48, height: 48 }}
+              onClick={onNotificationClick}
             />
           </Badge>
           <Space
@@ -213,4 +218,6 @@ export default function Home() {
       />
     </Layout>
   );
-}
+};
+
+export default Home;
