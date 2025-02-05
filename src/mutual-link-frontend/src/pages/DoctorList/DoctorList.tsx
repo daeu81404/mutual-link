@@ -444,11 +444,16 @@ const DoctorList = () => {
 
           await saveReferralMetadata({
             referralId,
+            fromEmail: userInfo?.email || "", // 송신자 이메일
+            toEmail: selectedDoctor.email, // 수신자 이메일
             doctorName: selectedDoctor.name,
             hospitalName: selectedDoctor.hospital,
             department: selectedDoctor.department,
             patientName: values.patientName,
             patientPhone: values.phone,
+            status: "PENDING",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           });
 
           // SMS 전송 로직 추가
