@@ -31,6 +31,7 @@ import { MedicalDataCache } from "@/utils/indexedDB";
 import DoctorInfoModal from "@/components/DoctorInfoModal";
 import { saveReferralMetadata } from "@/firebase/referral";
 import { saveNotificationHistory } from "@/firebase/notification";
+import { createActor } from "../../utils/actor";
 
 const { Search } = Input;
 
@@ -243,64 +244,49 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
     setNoResults(medicalRecords.length === 0 && searchQuery !== "");
   }, [medicalRecords, searchQuery]);
 
+  // Actor 초기화를 위한 useEffect
   useEffect(() => {
     const initActor = async () => {
       try {
-        const currentHost = window.location.hostname;
-        const host = currentHost.includes("localhost")
-          ? `http://${currentHost}:4943`
-          : "http://127.0.0.1:4943";
-
-        const agent = new HttpAgent({ host });
-
-        if (host.includes("localhost") || host.includes("127.0.0.1")) {
-          await agent.fetchRootKey();
-        }
-
-        const canisterId = "bkyz2-fmaaa-aaaaa-qaaaq-cai";
-
-        const actor = Actor.createActor(idlFactory, {
-          agent,
-          canisterId,
-        });
-
+        const actor = await createActor();
         setBackendActor(actor);
-        return actor;
       } catch (error) {
         console.error("Actor 초기화 실패:", error);
         message.error("백엔드 연결에 실패했습니다.");
-        return null;
       }
     };
 
+    initActor();
+  }, []);
+
+  // 데이터 로딩을 위한 useEffect
+  useEffect(() => {
     const fetchMedicalRecords = async () => {
+      if (!backendActor || !userInfo?.name) return;
+
       setLoading(true);
       try {
-        const actor = await initActor();
-        if (!actor || !userInfo?.name) return;
+        const offset = BigInt((pagination.current - 1) * pagination.pageSize);
+        const limit = BigInt(pagination.pageSize);
+        let result;
 
-        const offset = (pagination.current - 1) * pagination.pageSize;
-        let result: { items: BackendMedicalRecord[]; total: bigint };
-
-        if (searchQuery && searchQuery.length >= 2) {
-          result = (await actor.searchMedicalRecords(
+        if (type === "send") {
+          result = await backendActor.getMedicalRecordsByDoctor(
             userInfo.name,
-            type,
-            searchType,
-            searchQuery,
+            "sender",
             offset,
-            pagination.pageSize
-          )) as { items: BackendMedicalRecord[]; total: bigint };
+            limit
+          );
         } else {
-          result = (await actor.getMedicalRecordsByDoctor(
+          result = await backendActor.getMedicalRecordsByDoctor(
             userInfo.name,
-            type === "send" ? "sender" : "receiver",
+            "receiver",
             offset,
-            pagination.pageSize
-          )) as { items: BackendMedicalRecord[]; total: bigint };
+            limit
+          );
         }
 
-        const formattedRecords = result.items.map(
+        const formattedRecords = (result.items as any[]).map(
           (record: BackendMedicalRecord) => {
             // 상태값 매핑 로직
             let status = record.status;
@@ -373,8 +359,8 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           total: Number(result.total.toString()),
         }));
       } catch (error) {
-        console.error("의료 기록 조회 실패:", error);
-        message.error("의료 기록을 가져오는데 실패했습니다.");
+        console.error("의료기록 조회 실패:", error);
+        message.error("의료기록을 가져오는데 실패했습니다.");
       } finally {
         setLoading(false);
       }
@@ -382,10 +368,10 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
 
     fetchMedicalRecords();
   }, [
+    backendActor,
+    userInfo?.name,
     pagination.current,
     pagination.pageSize,
-    searchQuery,
-    userInfo?.name,
     type,
   ]);
 

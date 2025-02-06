@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import * as eccrypto from "@toruslabs/eccrypto";
 import { saveReferralMetadata } from "../../firebase/referral";
 import { useNavigate } from "react-router-dom";
+import { createActor } from "../../utils/actor";
 
 const { Search } = AntInput;
 
@@ -226,24 +227,7 @@ const DoctorList = () => {
   useEffect(() => {
     const initActor = async () => {
       try {
-        const currentHost = window.location.hostname;
-        const host = currentHost.includes("localhost")
-          ? `http://${currentHost}:4943`
-          : "http://127.0.0.1:4943";
-
-        const agent = new HttpAgent({ host });
-
-        if (host.includes("localhost") || host.includes("127.0.0.1")) {
-          await agent.fetchRootKey();
-        }
-
-        const canisterId = "bkyz2-fmaaa-aaaaa-qaaaq-cai";
-
-        const actor = Actor.createActor(idlFactory, {
-          agent,
-          canisterId,
-        });
-
+        const actor = await createActor();
         setBackendActor(actor);
         return actor;
       } catch (error) {
@@ -254,7 +238,7 @@ const DoctorList = () => {
     };
 
     initActor();
-  }, []); // 컴포넌트 마운트 시 한 번만 실행
+  }, []);
 
   useEffect(() => {
     const fetchDoctors = async () => {

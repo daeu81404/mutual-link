@@ -20,6 +20,7 @@ import {
   EditOutlined,
   DeleteOutlined,
 } from "@ant-design/icons";
+import { createActor } from "../../utils/actor";
 
 interface Doctor {
   id: bigint;
@@ -28,11 +29,11 @@ interface Doctor {
   phone: string;
   hospital: string;
   department: string;
-  role: "admin" | "user";
-  publicKey: [] | [string];
+  role: string;
+  publicKey: string[];
 }
 
-interface User {
+interface FormattedDoctor {
   key: string;
   id: number;
   name: string;
@@ -40,8 +41,8 @@ interface User {
   phone: string;
   hospital: string;
   department: string;
-  role: "admin" | "user";
-  publicKey?: string;
+  role: string;
+  publicKey: string | undefined;
 }
 
 type GetAllDoctorsResponse =
@@ -53,35 +54,18 @@ type GetAllDoctorsResponse =
     };
 
 const UserManagement = () => {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<FormattedDoctor[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [backendActor, setBackendActor] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<FormattedDoctor | null>(null);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
 
   useEffect(() => {
     const initActor = async () => {
       try {
-        const currentHost = window.location.hostname;
-        const host = currentHost.includes("localhost")
-          ? `http://${currentHost}:4943`
-          : "http://127.0.0.1:4943";
-
-        const agent = new HttpAgent({ host });
-
-        if (host.includes("localhost") || host.includes("127.0.0.1")) {
-          await agent.fetchRootKey();
-        }
-
-        const canisterId = "bkyz2-fmaaa-aaaaa-qaaaq-cai";
-
-        const actor = Actor.createActor(idlFactory, {
-          agent,
-          canisterId,
-        });
-
+        const actor = await createActor();
         setBackendActor(actor);
         return actor;
       } catch (error) {
@@ -97,11 +81,9 @@ const UserManagement = () => {
         const actor = await initActor();
         if (!actor) return;
 
-        const offset = (pagination.current - 1) * pagination.pageSize;
-        const result = (await actor.getPagedDoctors(
-          offset,
-          pagination.pageSize
-        )) as { items: Doctor[]; total: bigint };
+        const offset = BigInt((pagination.current - 1) * pagination.pageSize);
+        const limit = BigInt(pagination.pageSize);
+        const result = await actor.getPagedDoctors(offset, limit);
 
         const formattedUsers = result.items.map((doctor: Doctor) => ({
           key: doctor.id.toString(),
@@ -147,7 +129,7 @@ const UserManagement = () => {
     return phone;
   };
 
-  const columns: ColumnsType<User> = [
+  const columns: ColumnsType<FormattedDoctor> = [
     { title: "ID", dataIndex: "id", key: "id" },
     { title: "이름", dataIndex: "name", key: "name" },
     { title: "이메일", dataIndex: "email", key: "email" },
@@ -220,7 +202,7 @@ const UserManagement = () => {
     setIsModalVisible(true);
   };
 
-  const handleEdit = (user: User) => {
+  const handleEdit = (user: FormattedDoctor) => {
     setEditingUser(user);
     form.setFieldsValue(user);
     setIsModalVisible(true);

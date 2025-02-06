@@ -1,15 +1,12 @@
 import { useNavigate } from "react-router-dom";
-import { Layout, Typography, Button, Card, Space, message } from "antd";
+import { Layout, Typography, Button, Card, Space, message, Spin } from "antd";
 import { GoogleOutlined, LockOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWeb3Auth } from "@/contexts/Web3AuthContext";
 import { useEffect, useState } from "react";
-import { Actor, HttpAgent } from "@dfinity/agent";
-import {
-  idlFactory,
-  Result,
-  _SERVICE,
-} from "@/declarations/mutual-link-backend";
+import { createActor } from "../../utils/actor";
+import type { _SERVICE } from "../../../../declarations/mutual-link-backend/mutual-link-backend.did";
+import styles from "./Login.module.css";
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -19,8 +16,8 @@ const CANISTER_ID =
   "bkyz2-fmaaa-aaaaa-qaaaq-cai";
 
 const Login = () => {
-  const { loginWithGoogle, logout } = useWeb3Auth();
   const { login, isLoggedIn } = useAuth();
+  const { loginWithGoogle, logout } = useWeb3Auth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -40,21 +37,7 @@ const Login = () => {
 
       if (result.connected && result.publicKey && result.email) {
         try {
-          const currentHost = window.location.hostname;
-          const host = currentHost.includes("localhost")
-            ? `http://${currentHost}:4943`
-            : "http://127.0.0.1:4943";
-
-          const agent = new HttpAgent({ host });
-
-          if (host.includes("localhost") || host.includes("127.0.0.1")) {
-            await agent.fetchRootKey();
-          }
-
-          const actor = Actor.createActor<_SERVICE>(idlFactory, {
-            agent,
-            canisterId: CANISTER_ID,
-          });
+          const actor = await createActor();
 
           // 먼저 사용자 존재 여부 확인
           const doctorResult = await actor.getDoctorByEmail(result.email);
