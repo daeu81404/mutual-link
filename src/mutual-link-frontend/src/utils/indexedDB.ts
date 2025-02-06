@@ -28,7 +28,6 @@ export class MedicalDataCache {
 
       request.onsuccess = (event) => {
         this.db = (event.target as IDBOpenDBRequest).result;
-        console.log("IndexedDB 연결 성공");
         resolve();
       };
 

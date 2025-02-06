@@ -94,21 +94,12 @@ export const Web3AuthProvider = ({
 
   // 기존 useWeb3Auth의 메서드들
   const loginWithGoogle = async () => {
-    console.log("loginWithGoogle start");
-
-    if (!web3auth) {
-      console.error("web3auth not initialized");
-      return {
-        connected: null,
-        publicKey: null,
-        privateKey: null,
-        email: null,
-      };
-    }
-
     try {
+      if (!web3auth) {
+        throw new Error("web3auth not initialized");
+      }
+
       if (web3auth.connected) {
-        console.log("web3auth already connected");
         const privateKey = (await web3auth.provider?.request({
           method: "eth_private_key",
         })) as string;
@@ -148,13 +139,7 @@ export const Web3AuthProvider = ({
         email: userInfo.email || null,
       };
     } catch (error) {
-      console.error("Google 로그인 실패:", error);
-      return {
-        connected: null,
-        publicKey: null,
-        privateKey: null,
-        email: null,
-      };
+      throw error;
     }
   };
 

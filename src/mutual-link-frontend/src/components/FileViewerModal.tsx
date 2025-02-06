@@ -62,45 +62,36 @@ export default function FileViewerModal({
   const [isPdfLoading, setIsPdfLoading] = useState(false);
 
   useEffect(() => {
-    console.log("FileViewerModal useEffect 시작");
-    try {
-      // Cornerstone 초기화
-      cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
-      cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
-      console.log("WADO Image Loader 초기화 시작");
-      cornerstoneWADOImageLoader.webWorkerManager.initialize({
-        maxWebWorkers: navigator.hardwareConcurrency || 1,
-        startWebWorkersOnDemand: true,
-        taskConfiguration: {
-          decodeTask: {
-            initializeCodecsOnStartup: true,
-            usePDFJS: false,
-            strict: false,
-          },
-        },
-      });
-      console.log("WADO Image Loader 초기화 완료");
+    // Cornerstone 초기화
+    cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
+    cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
 
-      // PDF.js 워커 설정
-      pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-        "pdfjs-dist/build/pdf.worker.min.js",
-        import.meta.url
-      ).toString();
-    } catch (error) {
-      const err = error as Error;
-      console.error("초기화 중 에러 발생:", err);
-      setError(`초기화 중 에러가 발생했습니다: ${err.message}`);
-    }
+    // WADO Image Loader 초기화
+    cornerstoneWADOImageLoader.webWorkerManager.initialize({
+      maxWebWorkers: navigator.hardwareConcurrency || 1,
+      startWebWorkersOnDemand: true,
+      taskConfiguration: {
+        decodeTask: {
+          initializeCodecsOnStartup: true,
+          usePDFJS: false,
+          strict: false,
+        },
+      },
+    });
+
+    // PDF.js 워커 설정
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.js",
+      import.meta.url
+    ).toString();
 
     return () => {
-      console.log("FileViewerModal cleanup 시작");
       if (dicomContainerRef.current) {
         cornerstone.disable(dicomContainerRef.current);
       }
       if (pdfUrl) {
         URL.revokeObjectURL(pdfUrl);
       }
-      console.log("FileViewerModal cleanup 완료");
     };
   }, []);
 
@@ -177,41 +168,31 @@ export default function FileViewerModal({
 
   // PDF 탭 활성화 시 실행되는 useEffect
   useEffect(() => {
-    console.log("[PDF Debug] useEffect 시작", {
-      visible,
-      activeTab,
-      pdfLength: files.pdf.length,
-    });
-    if (!visible || activeTab !== "pdf" || !files.pdf.length) return;
+    if (visible && activeTab === "pdf" && files.pdf.length > 0) {
+      const loadPdf = async () => {
+        try {
+          setIsPdfLoading(true);
+          setError(null);
+          const blob = new Blob([files.pdf[0]], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          setPdfUrl(url);
+        } catch (error) {
+          const err = error as Error;
+          setError(`PDF 파일을 로드하는데 실패했습니다: ${err.message}`);
+        } finally {
+          setIsPdfLoading(false);
+        }
+      };
 
-    const loadPdf = async () => {
-      try {
-        console.log("[PDF Debug] PDF 로딩 시작");
-        setIsPdfLoading(true);
-        setError(null);
-        const blob = new Blob([files.pdf[0]], { type: "application/pdf" });
-        console.log("[PDF Debug] Blob 생성 완료", { size: blob.size });
-        const url = URL.createObjectURL(blob);
-        console.log("[PDF Debug] URL 생성 완료", { url });
-        setPdfUrl(url);
-      } catch (error) {
-        const err = error as Error;
-        console.error("[PDF Debug] PDF 로드 실패:", err);
-        setError(`PDF 파일을 로드하는데 실패했습니다: ${err.message}`);
-      } finally {
-        console.log("[PDF Debug] PDF 로딩 완료");
-        setIsPdfLoading(false);
-      }
-    };
+      loadPdf();
 
-    loadPdf();
-
-    return () => {
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl);
-      }
-    };
-  }, [visible, activeTab, files.pdf]);
+      return () => {
+        if (pdfUrl) {
+          URL.revokeObjectURL(pdfUrl);
+        }
+      };
+    }
+  }, [visible, activeTab, files.pdf, pdfUrl]);
 
   const handlePrevDicom = () => {
     setCurrentDicomIndex((prev) => Math.max(0, prev - 1));
@@ -570,7 +551,6 @@ export default function FileViewerModal({
                 <Space style={{ marginBottom: 16 }}>
                   <Button
                     onClick={() => {
-                      console.log("[PDF Debug] 목록으로 돌아가기 클릭");
                       setSelectedPdfIndex(null);
                       setPdfUrl(null);
                     }}
@@ -594,14 +574,10 @@ export default function FileViewerModal({
                   <Document
                     file={pdfUrl}
                     onLoadSuccess={({ numPages }) => {
-                      console.log("[PDF Debug] Document 로드 성공", {
-                        numPages,
-                      });
                       setNumPages(numPages);
                       setIsPdfLoading(false);
                     }}
                     onLoadError={(error: Error) => {
-                      console.error("[PDF Debug] Document 로드 실패:", error);
                       setError("PDF 파일을 로드하는데 실패했습니다.");
                       setIsPdfLoading(false);
                     }}
@@ -620,13 +596,8 @@ export default function FileViewerModal({
                       width={Math.min(window.innerWidth - 48, 1152)}
                       renderTextLayer={true}
                       renderAnnotationLayer={true}
-                      onLoadSuccess={() => {
-                        console.log("[PDF Debug] Page 로드 성공", {
-                          pageNumber,
-                        });
-                      }}
+                      onLoadSuccess={() => {}}
                       onRenderError={(error: Error) => {
-                        console.error("[PDF Debug] Page 렌더링 실패:", error);
                         setError("PDF 페이지를 로드하는데 실패했습니다.");
                       }}
                       loading={<Spin tip="페이지를 불러오는 중..." />}
@@ -642,18 +613,15 @@ export default function FileViewerModal({
                   key={index}
                   style={{ marginBottom: 8, display: "block" }}
                   onClick={() => {
-                    console.log("[PDF Debug] PDF 파일 선택", { index });
                     setSelectedPdfIndex(index);
                     setPageNumber(1);
                     if (pdfUrl) {
-                      console.log("[PDF Debug] 기존 URL 해제");
                       URL.revokeObjectURL(pdfUrl);
                     }
                     const blob = new Blob([files.pdf[index]], {
                       type: "application/pdf",
                     });
                     const url = URL.createObjectURL(blob);
-                    console.log("[PDF Debug] 새 URL 생성", { url });
                     setPdfUrl(url);
                   }}
                 >
