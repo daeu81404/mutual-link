@@ -173,7 +173,9 @@ export default function FileViewerModal({
         try {
           setIsPdfLoading(true);
           setError(null);
-          const blob = new Blob([files.pdf[0]], { type: "application/pdf" });
+          const blob = new Blob([files.pdf[selectedPdfIndex || 0]], {
+            type: "application/pdf",
+          });
           const url = URL.createObjectURL(blob);
           setPdfUrl(url);
         } catch (error) {
@@ -192,7 +194,7 @@ export default function FileViewerModal({
         }
       };
     }
-  }, [visible, activeTab, files.pdf, pdfUrl]);
+  }, [visible, activeTab, files.pdf, selectedPdfIndex]);
 
   const handlePrevDicom = () => {
     setCurrentDicomIndex((prev) => Math.max(0, prev - 1));
@@ -540,14 +542,17 @@ export default function FileViewerModal({
       children: files.pdf.length > 0 && (
         <div style={{ padding: "16px 0" }}>
           {selectedPdfIndex !== null ? (
-            <Spin spinning={isPdfLoading} tip="PDF 파일을 불러오는 중...">
-              <div
-                style={{
-                  position: "relative",
-                  zIndex: 1002,
-                  background: "white",
-                }}
-              >
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                minHeight: "calc(90vh - 250px)",
+                background: "white",
+                position: "relative",
+                zIndex: 1002,
+              }}
+            >
+              <Spin spinning={isPdfLoading} tip="PDF 파일을 불러오는 중...">
                 <Space style={{ marginBottom: 16 }}>
                   <Button
                     onClick={() => {
@@ -570,7 +575,14 @@ export default function FileViewerModal({
                     다음 페이지
                   </Button>
                 </Space>
-                <div style={{ background: "white", padding: "16px 0" }}>
+                <div
+                  style={{
+                    flex: 1,
+                    overflow: "auto",
+                    padding: "16px 0",
+                    background: "white",
+                  }}
+                >
                   <Document
                     file={pdfUrl}
                     onLoadSuccess={({ numPages }) => {
@@ -581,7 +593,18 @@ export default function FileViewerModal({
                       setError("PDF 파일을 로드하는데 실패했습니다.");
                       setIsPdfLoading(false);
                     }}
-                    loading={<Spin tip="PDF 파일을 불러오는 중..." />}
+                    loading={
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          minHeight: 200,
+                        }}
+                      >
+                        <Spin tip="PDF 파일을 불러오는 중..." />
+                      </div>
+                    }
                     options={{
                       cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist/cmaps/",
                       cMapPacked: true,
@@ -600,12 +623,23 @@ export default function FileViewerModal({
                       onRenderError={(error: Error) => {
                         setError("PDF 페이지를 로드하는데 실패했습니다.");
                       }}
-                      loading={<Spin tip="페이지를 불러오는 중..." />}
+                      loading={
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            minHeight: 200,
+                          }}
+                        >
+                          <Spin tip="페이지를 불러오는 중..." />
+                        </div>
+                      }
                     />
                   </Document>
                 </div>
-              </div>
-            </Spin>
+              </Spin>
+            </div>
           ) : (
             <div>
               {files.pdf.map((_, index) => (

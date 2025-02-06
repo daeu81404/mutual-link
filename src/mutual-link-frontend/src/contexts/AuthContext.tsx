@@ -90,8 +90,26 @@ function AuthProvider({ children }: { children: ReactNode }) {
   const loadUnreadNotifications = async (email: string) => {
     try {
       const unreadNotifications = await getUnreadNotifications(email);
-      setNotifications(notifications);
+      const formattedNotifications: Notification[] = unreadNotifications.map(
+        (notification) => ({
+          id: `${notification.referralId}-${notification.status}`,
+          title:
+            notification.status === "APPROVED"
+              ? "의료정보 공유 수락"
+              : "의료정보 공유 거절",
+          message:
+            notification.status === "APPROVED"
+              ? `${notification.patientName} 환자가 의료정보 공유를 수락했습니다.`
+              : `${notification.patientName} 환자가 의료정보 공유를 거절했습니다.`,
+          timestamp: notification.updatedAt,
+          read: false,
+          referralId: notification.referralId,
+          status: notification.status,
+        })
+      );
+      setNotifications(formattedNotifications);
     } catch (error) {
+      console.error("알림 로드 실패:", error);
       throw error;
     }
   };
