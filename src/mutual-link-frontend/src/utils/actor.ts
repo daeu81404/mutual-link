@@ -24,7 +24,6 @@ export const createActor = async () => {
 
     return actor;
   } catch (error) {
-    console.error("Actor 초기화 실패:", error);
-    throw error;
+    throw new Error("시스템에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
   }
 };

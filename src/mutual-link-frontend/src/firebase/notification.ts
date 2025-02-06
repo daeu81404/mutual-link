@@ -46,8 +46,7 @@ export const updateReferralStatus = async (
     });
     return { success: true };
   } catch (error) {
-    console.error("Error updating referral status:", error);
-    return { success: false, error };
+    throw error;
   }
 };
 
@@ -83,9 +82,7 @@ export const saveNotificationHistory = async (
     await set(historyRef, {
       notifiedAt: new Date().toISOString(),
     });
-    console.log("[DEBUG] 알림 이력 저장 성공:", referralId);
   } catch (error) {
-    console.error("[DEBUG] 알림 이력 저장 실패:", error);
     throw error;
   }
 };
@@ -103,8 +100,7 @@ const checkNotificationHistory = async (
     const snapshot = await get(historyRef);
     return snapshot.exists();
   } catch (error) {
-    console.error("[DEBUG] 알림 이력 확인 실패:", error);
-    return false;
+    throw error;
   }
 };
 
@@ -128,7 +124,6 @@ const initActor = async () => {
       canisterId,
     });
   } catch (error) {
-    console.error("Actor 초기화 실패:", error);
     throw error;
   }
 };
@@ -141,9 +136,8 @@ const updateMedicalRecordStatus = async (
   try {
     const actor = await initActor();
     await actor.updateMedicalRecordStatus(Number(referralId), status);
-    console.log("[DEBUG] 의료기록 상태 업데이트 완료:", referralId);
   } catch (error) {
-    console.error("[DEBUG] 의료기록 상태 업데이트 실패:", error);
+    throw error;
   }
 };
 
@@ -156,32 +150,15 @@ const handleNotification = async (
 ) => {
   // 이미 알림을 보낸 경우 중복 처리 방지
   const notificationKey = `${referralId}-${referral.status}`;
-  console.log("[FIREBASE] 알림 처리 시작:", {
-    notificationKey,
-    userEmail,
-    status: referral.status,
-    isInNotifiedSet: notifiedReferrals.has(notificationKey),
-  });
 
   if (notifiedReferrals.has(notificationKey)) {
-    console.log("[FIREBASE] 이미 처리된 알림 - 처리 중단:", notificationKey);
     return;
   }
 
   // notification_history에 없는 경우에만 알림 생성
   const alreadyChecked = await checkNotificationHistory(userEmail, referralId);
-  console.log("[FIREBASE] 알림 이력 확인:", {
-    referralId,
-    alreadyChecked,
-  });
 
   if (!alreadyChecked) {
-    console.log("[FIREBASE] 새 알림 처리:", {
-      referralId,
-      status: referral.status,
-    });
-
-    // 알림 처리 완료 표시 (먼저 설정)
     notifiedReferrals.add(notificationKey);
 
     // 의료기록 상태 자동 업데이트 및 알림 생성
@@ -197,10 +174,6 @@ export const subscribeToReferralUpdates = (
   userEmail: string,
   onUpdate: (data: any) => void
 ) => {
-  console.log("[DEBUG] 알림 구독 시작 ====");
-  console.log("[DEBUG] 구독 이메일:", userEmail);
-
-  // 구독 시작할 때 Set 초기화
   notifiedReferrals.clear();
 
   const referralsRef = ref(database, "referrals");
@@ -218,14 +191,6 @@ export const subscribeToReferralUpdates = (
           referral.fromEmail === userEmail
         ) {
           const status = referral.status;
-          console.log("[DEBUG] 초기 데이터 확인:", {
-            referralId,
-            status,
-            createdAt: referral.createdAt,
-            updatedAt: referral.updatedAt,
-            isReceiver: referral.toEmail === userEmail,
-            isSender: referral.fromEmail === userEmail,
-          });
 
           // 현재 상태만 저장하고 알림은 생성하지 않음
           previousStates.set(referralId, status);
@@ -251,16 +216,6 @@ export const subscribeToReferralUpdates = (
         ) {
           const prevStatus = previousStates.get(referralId);
           const currentStatus = referral.status;
-
-          console.log("[DEBUG] 실시간 상태 변경 감지:", {
-            referralId,
-            prevStatus,
-            currentStatus,
-            createdAt: referral.createdAt,
-            updatedAt: referral.updatedAt,
-            isReceiver: referral.toEmail === userEmail,
-            isSender: referral.fromEmail === userEmail,
-          });
 
           // 이전 상태가 있고, 상태가 변경된 경우에만 처리
           if (prevStatus && prevStatus !== currentStatus) {
@@ -298,12 +253,11 @@ export const subscribeToReferralUpdates = (
       }
     },
     (error) => {
-      console.error("[DEBUG] 구독 에러:", error);
+      throw error;
     }
   );
 
   return () => {
-    console.log("[DEBUG] 알림 구독 종료 ====");
     previousStates.clear();
     notifiedReferrals.clear();
     unsubscribe();
@@ -353,7 +307,6 @@ export const getUnreadNotifications = async (
 
     return unreadNotifications;
   } catch (error) {
-    console.error("[FIREBASE] 읽지 않은 알림 조회 실패:", error);
-    return [];
+    throw error;
   }
 };

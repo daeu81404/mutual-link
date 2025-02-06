@@ -149,8 +149,7 @@ const encryptAndUploadFile = async (
     const data = await response.json();
     return data?.Hash ?? null;
   } catch (error) {
-    console.error("파일 암호화 및 업로드 실패:", error);
-    return null;
+    throw error;
   }
 };
 
@@ -199,9 +198,7 @@ const testZipExtraction = async (file: File): Promise<boolean> => {
     }
     return true;
   } catch (error) {
-    console.error("ZIP 파일 검증 실패:", error);
-    message.error("ZIP 파일 검증에 실패했습니다.");
-    return false;
+    throw error;
   }
 };
 
@@ -231,9 +228,7 @@ const DoctorList = () => {
         setBackendActor(actor);
         return actor;
       } catch (error) {
-        console.error("Actor 초기화 실패:", error);
-        message.error("백엔드 연결에 실패했습니다.");
-        return null;
+        throw error;
       }
     };
 
@@ -283,8 +278,7 @@ const DoctorList = () => {
           total: Number(result.total.toString()),
         }));
       } catch (error) {
-        console.error("의사 목록 조회 실패:", error);
-        message.error("의사 목록을 가져오는데 실패했습니다.");
+        message.error("의사 목록을 불러오는데 실패했습니다.");
       } finally {
         setLoading(false);
       }
@@ -349,7 +343,6 @@ const DoctorList = () => {
 
       // 1. AES key 생성 (32바이트 = 256비트)
       const aesKey = await generateRandomKey();
-      console.log("생성된 AES 키:", aesKey);
 
       // 2. 파일 처리
       const uploadedFile = values.files?.fileList[0]?.originFileObj;
@@ -446,7 +439,6 @@ const DoctorList = () => {
       if ("ok" in result) {
         // Firebase에 메타데이터 저장
         try {
-          console.log("진료의뢰 생성 결과:", result.ok); // 구조 확인을 위한 로그
           const referralId = result.ok.id
             ? result.ok.id.toString()
             : result.ok.toString();
@@ -492,15 +484,14 @@ const DoctorList = () => {
           setIsModalOpen(false);
           form.resetFields();
         } catch (error) {
-          console.error("Firebase 메타데이터 저장 실패:", error);
-          message.warning("메타데이터 저장에 실패했습니다.");
+          throw error;
         }
       } else if ("err" in result) {
         message.error(result.err);
       }
     } catch (error) {
-      console.error("진료 기록 전송에 실패했습니다:", error);
       message.error("진료 기록 전송에 실패했습니다.");
+      setLoading(false);
     } finally {
       setIsSubmitting(false);
       setIsCancellable(true);
@@ -536,7 +527,6 @@ const DoctorList = () => {
         mac: encryptedData.mac.toString("hex"),
       });
     } catch (error) {
-      console.error("Encryption failed:", error);
       throw error;
     }
   };

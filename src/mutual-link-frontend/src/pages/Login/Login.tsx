@@ -33,7 +33,6 @@ const Login = () => {
     setIsLoading(true);
     try {
       const result = await loginWithGoogle();
-      console.log(`로그인 결과:`, result);
 
       if (result.connected && result.publicKey && result.email) {
         try {
@@ -44,7 +43,7 @@ const Login = () => {
 
           if (!doctorResult.length) {
             message.error(
-              "등록되지 않은 의사 계정입니다. 관리자에게 문의하세요."
+              "등록되지 않은 의사 계정입니다. 병원 관리자에게 계정 등록을 요청해주세요."
             );
             await logout();
             return;
@@ -72,7 +71,7 @@ const Login = () => {
               return;
             } else {
               message.error(
-                "이미 다른 기기에서 등록된 계정입니다. 관리자에게 문의하세요."
+                "이미 다른 기기에서 로그인된 계정입니다. 기존 기기에서 로그아웃 후 다시 시도하시거나 병원 관리자에게 문의해주세요."
               );
               await logout();
               return;
@@ -84,7 +83,6 @@ const Login = () => {
             userData.email,
             result.publicKey
           );
-          console.log("Public key 업데이트 결과:", updateResult);
 
           if ("ok" in updateResult) {
             login(userData);
@@ -94,14 +92,13 @@ const Login = () => {
             await logout();
           }
         } catch (error) {
-          console.error("백엔드 통신 중 오류 발생:", error);
-          message.error(
-            "로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
-          );
+          message.error("로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
           await logout();
         }
       } else {
-        message.error("로그인에 필요한 정보를 가져오지 못했습니다.");
+        message.error(
+          "구글 계정 정보를 가져올 수 없습니다. 다시 시도해주세요."
+        );
         await logout();
       }
     } finally {

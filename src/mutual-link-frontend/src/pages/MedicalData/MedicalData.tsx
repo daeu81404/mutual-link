@@ -125,7 +125,6 @@ const downloadFromIPFS = async (cid: string): Promise<Blob> => {
     const blob = await response.blob();
     return blob;
   } catch (error) {
-    console.error("IPFS 다운로드 실패:", error);
     throw error;
   }
 };
@@ -152,7 +151,6 @@ const decryptAesKey = async (encryptedAesKey: string, privateKey: string) => {
     );
     return decryptedBuffer.toString("hex");
   } catch (error) {
-    console.error("AES 키 복호화 실패:", error);
     throw error;
   }
 };
@@ -251,8 +249,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         const actor = await createActor();
         setBackendActor(actor);
       } catch (error) {
-        console.error("Actor 초기화 실패:", error);
-        message.error("백엔드 연결에 실패했습니다.");
+        throw error;
       }
     };
 
@@ -320,11 +317,6 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
               date: (() => {
                 const originalDate = record.date.toString();
                 const milliseconds = Math.floor(Number(originalDate) / 1000000);
-                console.log("Backend date conversion:", {
-                  original: originalDate,
-                  milliseconds: milliseconds,
-                  date: new Date(milliseconds),
-                });
                 return milliseconds;
               })(),
               phone: record.phone,
@@ -359,8 +351,9 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           total: Number(result.total.toString()),
         }));
       } catch (error) {
-        console.error("의료기록 조회 실패:", error);
-        message.error("의료기록을 가져오는데 실패했습니다.");
+        message.error(
+          "의료기록을 불러올 수 없습니다. 네트워크 연결을 확인해주세요."
+        );
       } finally {
         setLoading(false);
       }
@@ -392,7 +385,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
 
     try {
       if (!userInfo?.privateKey) {
-        message.error("개인키가 없습니다.");
+        message.error("로그인 정보가 유효하지 않습니다. 다시 로그인해주세요.");
         return;
       }
 
@@ -403,7 +396,10 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         : record.encryptedAesKeyForReceiver;
 
       if (!encryptedAesKey) {
-        throw new Error("암호화된 AES 키가 없습니다.");
+        message.error(
+          "의료 데이터를 복호화할 수 없습니다. 관리자에게 문의해주세요."
+        );
+        return;
       }
 
       // 1. 캐시된 파일이 있는지 확인
@@ -411,11 +407,8 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       let encryptedData: ArrayBuffer;
 
       if (cachedData) {
-        console.log("캐시된 파일을 사용합니다.");
-        message.success("캐시된 파일을 불러옵니다.");
         encryptedData = cachedData.encryptedData;
       } else {
-        message.info("파일을 새로 다운로드합니다.");
         // 2. IPFS에서 암호화된 파일 다운로드
         const encryptedBlob = await downloadFromIPFS(record.cid);
         encryptedData = await encryptedBlob.arrayBuffer();
@@ -523,8 +516,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       setViewerFiles(files);
       setViewerModalVisible(true);
     } catch (error) {
-      console.error("파일 처리 실패:", error);
-      message.error("파일을 처리하는데 실패했습니다.");
+      throw error;
     } finally {
       loadingModal.destroy();
     }
@@ -533,7 +525,12 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   // 의사 목록 조회
   const fetchDoctors = async (page: number = 1, pageSize: number = 10) => {
     try {
-      if (!backendActor) return;
+      if (!backendActor) {
+        message.error(
+          "시스템에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."
+        );
+        return;
+      }
       const offset = (page - 1) * pageSize;
       const result = await backendActor.getPagedDoctors(offset, pageSize);
       let formattedDoctors = result.items
@@ -556,8 +553,6 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         })
         // 현재 사용자 제외
         .filter((doctor: Doctor) => doctor.email !== userInfo?.email);
-
-      console.log("Formatted doctors:", formattedDoctors); // 디버깅용 로그
 
       // 검색어가 있는 경우 필터링
       if (doctorSearchKeyword) {
@@ -583,7 +578,6 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         total: formattedDoctors.length,
       }));
     } catch (error) {
-      console.error("의사 목록 조회 실패:", error);
       message.error("의사 목록을 불러오는데 실패했습니다.");
     }
   };
@@ -625,7 +619,6 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       setSelectedHistories(formattedRecords);
       setHistoryModalVisible(true);
     } catch (error) {
-      console.error("이관 히스토리 조회 실패:", error);
       message.error("이관 히스토리를 불러오는데 실패했습니다.");
     }
   };
@@ -633,7 +626,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   // 이관 실행
   const handleTransfer = async () => {
     if (!backendActor) {
-      message.error("백엔드 연결이 되지 않았습니다.");
+      message.error("시스템에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
       return;
     }
     if (!userInfo) {
@@ -653,7 +646,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       return;
     }
     if (!selectedDoctor.publicKey) {
-      message.error("선택한 의사의 공개키가 등록되어 있지 않습니다.");
+      message.error("의사 인증 정보가 없습니다. 관리자에게 문의해주세요.");
       return;
     }
 
@@ -727,13 +720,10 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       if ("ok" in result) {
         // Firebase에 메타데이터 저장
         try {
-          console.log("진료의뢰 생성 결과:", result.ok); // 구조 확인을 위한 로그
-          const referralId = result.ok.id
-            ? result.ok.id.toString()
-            : result.ok.toString();
-
           await saveReferralMetadata({
-            referralId,
+            referralId: result.ok.id
+              ? result.ok.id.toString()
+              : result.ok.toString(),
             fromEmail: userInfo?.email || "", // 송신자 이메일
             toEmail: selectedDoctor.email, // 수신자 이메일
             doctorName: selectedDoctor.name,
@@ -747,7 +737,11 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           });
 
           // SMS 전송 로직 추가
-          const smsMessage = `${userInfo?.name}님이 전송한 [${selectedRecord.patientName}]의료정보 도착\nhttps://mutual-link-d70e6.web.app/?referralId=${referralId}`;
+          const smsMessage = `${userInfo?.name}님이 전송한 [${
+            selectedRecord.patientName
+          }]의료정보 도착\nhttps://mutual-link-d70e6.web.app/?referralId=${
+            result.ok.id ? result.ok.id.toString() : result.ok.toString()
+          }`;
 
           // 전화번호에서 하이픈 제거
           const phoneNumber = selectedRecord.phone.replace(/-/g, "");
@@ -842,15 +836,15 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
 
           setMedicalRecords(formattedRecords);
         } catch (error) {
-          console.error("Firebase 메타데이터 저장 실패:", error);
-          message.warning("메타데이터 저장에 실패했습니다.");
+          throw error;
         }
       } else {
         message.error(result.err);
       }
     } catch (error) {
-      console.error("진료 기록 이관 실패:", error);
-      message.error("진료 기록 이관에 실패했습니다.");
+      message.error(
+        "진료 기록 이관 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요."
+      );
     } finally {
       setLoading(false);
       setIsSubmitting(false);
@@ -909,9 +903,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       dataIndex: "date",
       key: "date",
       render: (_: unknown, record: MedicalRecord) => {
-        console.log("Original date value:", record.date);
-        const date = new Date(Number(record.date)); // 이미 밀리초로 변환된 값이므로 그대로 사용
-        console.log("Final date object:", date);
+        const date = new Date(Number(record.date));
         return date.toLocaleString("ko-KR", {
           year: "numeric",
           month: "2-digit",
@@ -1242,9 +1234,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
             style={{ width: "100%", marginBottom: 16 }}
             placeholder="의사를 선택해주세요"
             onChange={(value) => {
-              console.log("Selected doctor ID:", value);
               const doctor = doctors.find((d) => d.id === value);
-              console.log("Found doctor:", doctor);
               if (doctor && !doctor.publicKey) {
                 message.warning(
                   "선택한 의사의 공개키가 등록되어 있지 않습니다."
