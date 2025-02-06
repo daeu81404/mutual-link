@@ -318,6 +318,17 @@ const DoctorList = () => {
     }
   }, [pagination.current, pagination.pageSize, searchQuery, backendActor]);
 
+  // 검색어 입력 시 자동 검색 (디바운스 적용)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (tempSearchQuery !== searchQuery) {
+        handleSearch(tempSearchQuery);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [tempSearchQuery]);
+
   const handleUploadClick = () => {
     setIsModalOpen(true);
   };
@@ -603,9 +614,10 @@ const DoctorList = () => {
   const handleSearch = (value: string) => {
     const trimmedValue = value.trim().replace(/\s+/g, " ");
 
+    setSearchQuery(trimmedValue);
+    setPagination((prev) => ({ ...prev, current: 1 }));
+
     if (trimmedValue === "") {
-      setSearchQuery("");
-      setPagination((prev) => ({ ...prev, current: 1 }));
       return;
     }
 
@@ -633,8 +645,6 @@ const DoctorList = () => {
     } else {
       setSearchQuery(trimmedValue);
     }
-
-    setPagination((prev) => ({ ...prev, current: 1 }));
   };
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -704,6 +714,7 @@ const DoctorList = () => {
           onSearch={handleSearch}
           style={{ width: 400, marginLeft: 8 }}
           allowClear
+          onPressEnter={() => handleSearch(tempSearchQuery)}
         />
       </div>
       {doctors.length === 0 && searchQuery ? (
