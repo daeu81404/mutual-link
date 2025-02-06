@@ -14,7 +14,7 @@ import {
   DownloadOutlined,
   CopyOutlined,
   EyeOutlined,
-  SwapOutlined,
+  SendOutlined,
   HistoryOutlined,
   ArrowRightOutlined,
 } from "@ant-design/icons";
@@ -1051,10 +1051,19 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       key: "action",
       render: (_: unknown, record: MedicalRecord) => (
         <Space size="middle">
-          <Button icon={<EyeOutlined />} onClick={() => handleFileView(record)}>
+          <Button
+            type="primary"
+            ghost
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => handleFileView(record)}
+          >
             보기
           </Button>
           <Button
+            type="primary"
+            ghost
+            size="small"
             icon={<HistoryOutlined />}
             onClick={() => handleHistoryClick(record.id)}
           >
@@ -1062,7 +1071,10 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           </Button>
           {showTransferButton(record) && (
             <Button
-              icon={<SwapOutlined />}
+              type="primary"
+              ghost
+              size="small"
+              icon={<SendOutlined />}
               onClick={() => handleTransferClick(record)}
             >
               진료의뢰

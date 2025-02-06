@@ -14,7 +14,12 @@ import type { ColumnsType } from "antd/es/table";
 import { Actor, HttpAgent } from "@dfinity/agent";
 import { Principal } from "@dfinity/principal";
 import { idlFactory } from "../../../../declarations/mutual-link-backend/mutual-link-backend.did.js";
-import { CopyOutlined } from "@ant-design/icons";
+import {
+  CopyOutlined,
+  UserAddOutlined,
+  EditOutlined,
+  DeleteOutlined,
+} from "@ant-design/icons";
 
 interface Doctor {
   id: bigint;
@@ -184,11 +189,24 @@ const UserManagement = () => {
       title: "작업",
       key: "action",
       render: (_, record) => (
-        <Space>
-          <Button type="primary" onClick={() => handleEdit(record)}>
+        <Space size="middle">
+          <Button
+            type="primary"
+            ghost
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+          >
             수정
           </Button>
-          <Button danger onClick={() => handleDelete(record.id)}>
+          <Button
+            type="primary"
+            ghost
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record.id)}
+          >
             삭제
           </Button>
         </Space>
@@ -299,7 +317,7 @@ const UserManagement = () => {
   return (
     <div style={{ padding: "24px" }}>
       <div className="table-toolbar">
-        <Button type="primary" onClick={handleAdd}>
+        <Button type="primary" icon={<UserAddOutlined />} onClick={handleAdd}>
           사용자 추가
         </Button>
       </div>

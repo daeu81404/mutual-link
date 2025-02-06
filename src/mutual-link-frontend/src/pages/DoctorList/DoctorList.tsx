@@ -17,7 +17,7 @@ import { useState, useEffect } from "react";
 import type { ColumnsType } from "antd/es/table";
 import { Actor, HttpAgent } from "@dfinity/agent";
 import { idlFactory } from "../../../../declarations/mutual-link-backend/mutual-link-backend.did.js";
-import { UploadOutlined } from "@ant-design/icons";
+import { UploadOutlined, CopyOutlined, SendOutlined } from "@ant-design/icons";
 import CryptoJS from "crypto-js";
 import { useAuth } from "@/contexts/AuthContext";
 import * as eccrypto from "@toruslabs/eccrypto";
@@ -557,7 +557,7 @@ const DoctorList = () => {
     { title: "병원", dataIndex: "hospital", key: "hospital" },
     { title: "부서", dataIndex: "department", key: "department" },
     {
-      title: "진료의뢰",
+      title: "작업",
       key: "action",
       render: (_, record) => {
         // 현재 로그인한 사용자와 동일한 의사인 경우
@@ -569,7 +569,13 @@ const DoctorList = () => {
           return <span style={{ color: "#ff4d4f" }}>최초 로그인 대기</span>;
         }
         return (
-          <Button type="primary" onClick={() => handleDoctorUpload(record)}>
+          <Button
+            type="primary"
+            ghost
+            size="small"
+            icon={<SendOutlined />}
+            onClick={() => handleDoctorUpload(record)}
+          >
             진료의뢰
           </Button>
         );
