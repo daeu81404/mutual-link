@@ -22,6 +22,7 @@ import CryptoJS from "crypto-js";
 import { useAuth } from "@/contexts/AuthContext";
 import * as eccrypto from "@toruslabs/eccrypto";
 import { saveReferralMetadata } from "../../firebase/referral";
+import { useNavigate } from "react-router-dom";
 
 const { Search } = AntInput;
 
@@ -219,6 +220,8 @@ const DoctorList = () => {
   const [searchType, setSearchType] = useState("name");
   const [searchQuery, setSearchQuery] = useState("");
   const [tempSearchQuery, setTempSearchQuery] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCancellable, setIsCancellable] = useState(true);
 
   useEffect(() => {
     const initActor = async () => {
@@ -325,11 +328,19 @@ const DoctorList = () => {
   };
 
   const handleModalCancel = () => {
+    if (!isCancellable) return;
     setIsModalOpen(false);
     form.resetFields();
+    setIsCancellable(true);
+    setIsSubmitting(false);
   };
 
   const handleModalSubmit = async (values: any) => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setIsCancellable(true); // 초기에는 취소 가능
+
     try {
       if (!backendActor) {
         message.error("백엔드가 초기화되지 않았습니다.");
@@ -357,6 +368,9 @@ const DoctorList = () => {
       if (!isValidZip) {
         return;
       }
+
+      // 파일 암호화 및 업로드가 시작되면 취소 불가능
+      setIsCancellable(false);
 
       // 파일 암호화 및 업로드 진행률 표시를 위한 메시지
       const key = "uploadProgress";
@@ -492,6 +506,9 @@ const DoctorList = () => {
     } catch (error) {
       console.error("진료 기록 전송에 실패했습니다:", error);
       message.error("진료 기록 전송에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+      setIsCancellable(true);
     }
   };
 
@@ -652,7 +669,7 @@ const DoctorList = () => {
   };
 
   const handleSearchTypeChange = (value: string) => {
-    setSearchType(value);
+    setSearchType(value as "name" | "hospital" | "department");
     setTempSearchQuery("");
     setSearchQuery("");
     setPagination((prev) => ({ ...prev, current: 1 }));
@@ -747,11 +764,18 @@ const DoctorList = () => {
               key="cancel"
               onClick={handleModalCancel}
               style={{ marginRight: 8 }}
+              disabled={!isCancellable}
             >
               취소
             </Button>
-            <Button key="submit" type="primary" onClick={form.submit}>
-              등록
+            <Button
+              key="submit"
+              type="primary"
+              onClick={form.submit}
+              loading={isSubmitting}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "등록 중..." : "등록"}
             </Button>
           </div>
         }
@@ -762,6 +786,8 @@ const DoctorList = () => {
           maxHeight: "calc(100vh - 200px)",
           overflow: "auto",
         }}
+        maskClosable={isCancellable}
+        closable={isCancellable}
       >
         <Form
           form={form}
