@@ -29,6 +29,8 @@ import FileViewerModal from "@/components/FileViewerModal";
 import JSZip from "jszip";
 import { MedicalDataCache } from "@/utils/indexedDB";
 import DoctorInfoModal from "@/components/DoctorInfoModal";
+import { saveReferralMetadata } from "@/firebase/referral";
+import { saveNotificationHistory } from "@/firebase/notification";
 
 const { Search } = Input;
 
@@ -735,73 +737,126 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       );
 
       if ("ok" in result) {
-        message.success("진료 기록이 성공적으로 이관되었습니다.");
-        setTransferModalVisible(false);
-        setSelectedDoctor(null);
-        setSelectedRecord(null);
+        // Firebase에 메타데이터 저장
+        try {
+          console.log("진료의뢰 생성 결과:", result.ok); // 구조 확인을 위한 로그
+          const referralId = result.ok.id
+            ? result.ok.id.toString()
+            : result.ok.toString();
 
-        // 목록 새로고침
-        const offset = (pagination.current - 1) * pagination.pageSize;
-        const recordResult = await backendActor.getMedicalRecordsByDoctor(
-          userInfo.name,
-          type === "send" ? "sender" : "receiver",
-          offset,
-          pagination.pageSize
-        );
+          await saveReferralMetadata({
+            referralId,
+            fromEmail: userInfo?.email || "", // 송신자 이메일
+            toEmail: selectedDoctor.email, // 수신자 이메일
+            doctorName: selectedDoctor.name,
+            hospitalName: selectedDoctor.hospital,
+            department: selectedDoctor.department,
+            patientName: selectedRecord.patientName,
+            patientPhone: selectedRecord.phone,
+            status: "PENDING",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
 
-        const formattedRecords = recordResult.items.map((record: any) => {
-          // 상태값 매핑 로직
-          let status = record.status;
-          switch (record.status) {
-            case "PENDING_APPROVAL":
-            case "pending":
-            case "APPROVED":
-              status = "승인됨";
-              break;
-            case "REJECTED":
-              status = "거부됨";
-              break;
-            case "TRANSFERRED":
-            case "transferred":
-              status = "이관됨";
-              break;
-            case "EXPIRED":
-              status = "만료됨";
-              break;
-            default:
-              status = "승인됨";
-              break;
-          }
+          // SMS 전송 로직 추가
+          const smsMessage = `${userInfo?.name}님이 전송한 [${selectedRecord.patientName}]의료정보 도착\nhttps://mutual-link-d70e6.web.app/?referralId=${referralId}`;
 
-          return {
-            id: Number(record.id.toString()),
-            date: Number(record.date.toString()) / 1000000,
-            phone: record.phone,
-            patientName: record.patientName,
-            title: record.title,
-            description: record.description,
-            fromDoctor: record.fromDoctor,
-            fromEmail: record.fromEmail,
-            fromHospital: record.fromHospital,
-            fromDepartment: record.fromDepartment,
-            fromPhone: record.fromPhone,
-            toDoctor: record.toDoctor,
-            toEmail: record.toEmail,
-            toHospital: record.toHospital,
-            toDepartment: record.toDepartment,
-            toPhone: record.toPhone,
-            cid: record.cid,
-            status: status,
-            encryptedAesKeyForSender: record.encryptedAesKeyForSender,
-            encryptedAesKeyForReceiver: record.encryptedAesKeyForReceiver,
-            originalRecordId: record.originalRecordId
-              ? Number(record.originalRecordId.toString())
-              : null,
-            transferredDoctors: record.transferredDoctors,
-          };
-        });
+          // 전화번호에서 하이픈 제거
+          const phoneNumber = selectedRecord.phone.replace(/-/g, "");
+          console.log("SMS 전송 시도:", { phoneNumber, message: smsMessage });
 
-        setMedicalRecords(formattedRecords);
+          const response = await fetch(
+            "https://8oxqti6xl1.execute-api.ap-northeast-2.amazonaws.com/default/sms",
+            {
+              method: "POST",
+              mode: "no-cors",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                message: smsMessage,
+                phoneNumber: phoneNumber,
+              }),
+            }
+          );
+          console.log("SMS 전송 응답:", response);
+
+          message.success(
+            "진료의뢰가 요청되었습니다. 환자의 승인을 기다립니다."
+          );
+          setTransferModalVisible(false);
+          setSelectedDoctor(null);
+          setSelectedRecord(null);
+
+          // 목록 새로고침
+          const offset = (pagination.current - 1) * pagination.pageSize;
+          const recordResult = await backendActor.getMedicalRecordsByDoctor(
+            userInfo.name,
+            type === "send" ? "sender" : "receiver",
+            offset,
+            pagination.pageSize
+          );
+
+          const formattedRecords = recordResult.items.map((record: any) => {
+            // 상태값 매핑 로직
+            let status = record.status;
+            switch (record.status) {
+              case "PENDING_APPROVAL":
+              case "PENDING":
+              case "pending":
+                status = "승인 대기";
+                break;
+              case "APPROVED":
+                status = "승인됨";
+                break;
+              case "REJECTED":
+                status = "거부됨";
+                break;
+              case "TRANSFERRED":
+              case "transferred":
+                status = "이관됨";
+                break;
+              case "EXPIRED":
+                status = "만료됨";
+                break;
+              default:
+                status = "승인 대기";
+                break;
+            }
+
+            return {
+              id: Number(record.id.toString()),
+              date: Number(record.date.toString()) / 1000000,
+              phone: record.phone,
+              patientName: record.patientName,
+              title: record.title,
+              description: record.description,
+              fromDoctor: record.fromDoctor,
+              fromEmail: record.fromEmail,
+              fromHospital: record.fromHospital,
+              fromDepartment: record.fromDepartment,
+              fromPhone: record.fromPhone,
+              toDoctor: record.toDoctor,
+              toEmail: record.toEmail,
+              toHospital: record.toHospital,
+              toDepartment: record.toDepartment,
+              toPhone: record.toPhone,
+              cid: record.cid,
+              status: status,
+              encryptedAesKeyForSender: record.encryptedAesKeyForSender,
+              encryptedAesKeyForReceiver: record.encryptedAesKeyForReceiver,
+              originalRecordId: record.originalRecordId
+                ? Number(record.originalRecordId.toString())
+                : null,
+              transferredDoctors: record.transferredDoctors,
+            };
+          });
+
+          setMedicalRecords(formattedRecords);
+        } catch (error) {
+          console.error("Firebase 메타데이터 저장 실패:", error);
+          message.warning("메타데이터 저장에 실패했습니다.");
+        }
       } else {
         message.error(result.err);
       }

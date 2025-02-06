@@ -362,7 +362,7 @@ module {
                                             cid = record.cid;
                                             encryptedAesKeyForSender = encryptedAesKeyForSender;
                                             encryptedAesKeyForReceiver = encryptedAesKeyForReceiver;
-                                            status = "APPROVED";
+                                            status = "PENDING_APPROVAL";
                                             originalRecordId = ?originalId;
                                             transferredDoctors = Array.append<Text>(record.transferredDoctors, [sender.name]);
                                         };
