@@ -209,6 +209,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
   } | null>(null);
   const [doctorInfoModalVisible, setDoctorInfoModalVisible] = useState(false);
   const [noResults, setNoResults] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 검색어 입력 핸들러 (디바운스 적용)
   useEffect(() => {
@@ -672,6 +673,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
 
     try {
       setLoading(true);
+      setIsSubmitting(true);
 
       // 1. 현재 사용자의 AES 키 복호화
       const decryptedAesKey = await decryptAesKey(
@@ -865,6 +867,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       message.error("진료 기록 이관에 실패했습니다.");
     } finally {
       setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -1188,6 +1191,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         open={transferModalVisible}
         onOk={handleTransfer}
         onCancel={() => {
+          if (loading || isSubmitting) return; // 로딩 중이거나 제출 중일 때는 취소 불가능
           setTransferModalVisible(false);
           setSelectedDoctor(null);
           setSelectedRecord(null);
@@ -1195,6 +1199,35 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           setDoctorSearchKeyword(""); // 검색어 초기화
         }}
         confirmLoading={loading}
+        maskClosable={!loading && !isSubmitting} // 로딩 중이거나 제출 중일 때는 마스크 클릭으로 닫기 불가능
+        closable={!loading && !isSubmitting} // 로딩 중이거나 제출 중일 때는 X 버튼으로 닫기 불가능
+        keyboard={!loading && !isSubmitting} // 로딩 중이거나 제출 중일 때는 ESC로 닫기 불가능
+        footer={
+          <div style={{ textAlign: "center" }}>
+            <Button
+              onClick={() => {
+                if (loading || isSubmitting) return;
+                setTransferModalVisible(false);
+                setSelectedDoctor(null);
+                setSelectedRecord(null);
+                setDoctorPagination((prev) => ({ ...prev, current: 1 }));
+                setDoctorSearchKeyword("");
+              }}
+              style={{ marginRight: 8 }}
+              disabled={loading || isSubmitting}
+            >
+              취소
+            </Button>
+            <Button
+              type="primary"
+              onClick={handleTransfer}
+              loading={loading || isSubmitting}
+              disabled={loading || isSubmitting}
+            >
+              {loading || isSubmitting ? "등록 중..." : "등록"}
+            </Button>
+          </div>
+        }
       >
         <div style={{ marginBottom: 16 }}>
           <h4>의뢰할 의사 선택</h4>
