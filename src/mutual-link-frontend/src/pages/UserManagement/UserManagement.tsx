@@ -372,10 +372,14 @@ const UserManagement = () => {
         onCancel={() => setIsModalVisible(false)}
         width={520}
         style={{ top: 20 }}
-        bodyStyle={{
-          padding: "24px",
-          maxHeight: "calc(100vh - 200px)",
-          overflow: "auto",
+        styles={{
+          body: {
+            padding: "24px",
+            maxHeight: "calc(100vh - 200px)",
+            overflow: "auto",
+            background: "white",
+            borderRadius: "8px",
+          },
         }}
       >
         <Form
