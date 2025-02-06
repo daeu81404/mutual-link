@@ -677,7 +677,7 @@ const DoctorList = () => {
 
   return (
     <div style={{ padding: "24px" }}>
-      <div className="table-toolbar" style={{ marginBottom: "16px" }}>
+      <div className="table-toolbar">
         <Select
           defaultValue="name"
           onChange={handleSearchTypeChange}
@@ -711,13 +711,16 @@ const DoctorList = () => {
           style={{
             textAlign: "center",
             padding: "40px 0",
-            color: "#999",
+            color: "var(--text-secondary)",
+            background: "white",
+            borderRadius: "8px",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
           }}
         >
           <div style={{ fontSize: "16px", marginBottom: "8px" }}>
             검색 결과가 없습니다
           </div>
-          <div style={{ fontSize: "14px" }}>
+          <div style={{ fontSize: "14px", color: "var(--text-tertiary)" }}>
             다른 검색어로 다시 시도해보세요
           </div>
         </div>
@@ -758,6 +761,7 @@ const DoctorList = () => {
               margin: "0 -24px -24px",
               padding: "16px 24px",
               borderTop: "1px solid var(--border-color)",
+              background: "white",
             }}
           >
             <Button
@@ -785,6 +789,8 @@ const DoctorList = () => {
           padding: "24px",
           maxHeight: "calc(100vh - 200px)",
           overflow: "auto",
+          background: "white",
+          borderRadius: "8px",
         }}
         maskClosable={isCancellable}
         closable={isCancellable}
@@ -853,7 +859,6 @@ const DoctorList = () => {
             <Input
               maxLength={13}
               onChange={(e) => {
-                // 자동으로 하이픈 추가
                 const value = e.target.value.replace(/[^0-9]/g, "");
                 if (value.length <= 11) {
                   let formattedValue = value;
@@ -922,14 +927,12 @@ const DoctorList = () => {
                   if (!file)
                     return Promise.reject(new Error("파일을 찾을 수 없습니다"));
 
-                  // 파일 크기 체크 (100MB 제한)
                   if (file.size > 100 * 1024 * 1024) {
                     return Promise.reject(
                       new Error("파일 크기는 100MB를 초과할 수 없습니다")
                     );
                   }
 
-                  // ZIP 파일 검증
                   const isZip =
                     file.type === "application/zip" ||
                     file.type === "application/x-zip-compressed" ||
@@ -960,7 +963,6 @@ const DoctorList = () => {
                   return false;
                 }
 
-                // ZIP 파일 검증
                 const isValidZip = await validateZipFile(file);
                 if (!isValidZip) {
                   message.error("올바른 ZIP 파일 형식이 아닙니다.");
@@ -970,11 +972,16 @@ const DoctorList = () => {
                 return false;
               }}
               accept=".zip"
-              style={{ padding: "16px 0" }}
+              style={{
+                padding: "16px 0",
+                background: "white",
+                border: "1px dashed var(--border-color)",
+                borderRadius: "8px",
+              }}
             >
               <p className="ant-upload-drag-icon">
                 <UploadOutlined
-                  style={{ fontSize: "32px", color: "#40a9ff" }}
+                  style={{ fontSize: "32px", color: "var(--primary-color)" }}
                 />
               </p>
               <p
@@ -983,7 +990,10 @@ const DoctorList = () => {
               >
                 Click to Upload
               </p>
-              <p className="ant-upload-hint" style={{ color: "#666" }}>
+              <p
+                className="ant-upload-hint"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 압축(zip) 파일만 업로드 가능합니다.
                 <br />
                 압축파일 안에는 [dicom, jpg, png, gif, bmp, webp, pdf] 파일만

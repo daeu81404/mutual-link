@@ -1,3 +1,17 @@
+:root {
+  --primary-color: #1890ff;
+  --hover-color: #40a9ff;
+  --text-color: #262626;
+  --text-secondary: #8c8c8c;
+  --text-tertiary: #bfbfbf;
+  --border-color: #f0f0f0;
+  --background-color: #ffffff;
+  --table-header-bg: #fafafa;
+  --table-border: #f0f0f0;
+  --table-row-hover: #fafafa;
+  --table-selected-row: #e6f7ff;
+}
+
 body {
   font-family: sans-serif;
   font-size: 1.5rem;
