@@ -1,5 +1,14 @@
 import { useNavigate } from "react-router-dom";
-import { Layout, Typography, Button, Card, Space, message, Spin } from "antd";
+import {
+  Layout,
+  Typography,
+  Button,
+  Card,
+  Space,
+  message,
+  Spin,
+  App,
+} from "antd";
 import { GoogleOutlined, LockOutlined } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWeb3Auth } from "@/contexts/Web3AuthContext";
@@ -20,6 +29,7 @@ const Login = () => {
   const { loginWithGoogle, logout } = useWeb3Auth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const { message: antMessage } = App.useApp();
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -42,7 +52,7 @@ const Login = () => {
           const doctorResult = await actor.getDoctorByEmail(result.email);
 
           if (!doctorResult.length) {
-            message.error(
+            antMessage.error(
               "등록되지 않은 의사 계정입니다. 병원 관리자에게 계정 등록을 요청해주세요."
             );
             await logout();
@@ -70,7 +80,7 @@ const Login = () => {
               navigate("/home/doctor-list");
               return;
             } else {
-              message.error(
+              antMessage.error(
                 "이미 다른 기기에서 로그인된 계정입니다. 기존 기기에서 로그아웃 후 다시 시도하시거나 병원 관리자에게 문의해주세요."
               );
               await logout();
@@ -88,15 +98,15 @@ const Login = () => {
             login(userData);
             navigate("/home/doctor-list");
           } else {
-            message.error(updateResult.err);
+            antMessage.error(updateResult.err);
             await logout();
           }
         } catch (error) {
-          message.error("로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
+          antMessage.error("로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
           await logout();
         }
       } else {
-        message.error(
+        antMessage.error(
           "구글 계정 정보를 가져올 수 없습니다. 다시 시도해주세요."
         );
         await logout();

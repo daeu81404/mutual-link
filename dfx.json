@@ -5,14 +5,17 @@
       "type": "motoko"
     },
     "mutual-link-frontend": {
-      "dependencies": [
-        "mutual-link-backend"
-      ],
-      "source": [
-        "src/mutual-link-frontend/dist"
-      ],
+      "dependencies": ["mutual-link-backend"],
+      "source": ["src/mutual-link-frontend/dist"],
       "type": "assets",
-      "workspace": "mutual-link-frontend"
+      "workspace": "mutual-link-frontend",
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
     }
   },
   "defaults": {

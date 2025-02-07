@@ -102,7 +102,7 @@ module {
                                 toHospital = receiver.hospital;
                                 toDepartment = receiver.department;
                                 toPhone = receiver.phone;
-                                phone = sender.phone;
+                                phone = patientPhone;
                                 cid = cid;
                                 encryptedAesKeyForSender = encryptedAesKeyForSender;
                                 encryptedAesKeyForReceiver = encryptedAesKeyForReceiver;
@@ -358,7 +358,7 @@ module {
                                             toHospital = receiver.hospital;
                                             toDepartment = receiver.department;
                                             toPhone = receiver.phone;
-                                            phone = sender.phone;
+                                            phone = record.patientPhone;
                                             cid = record.cid;
                                             encryptedAesKeyForSender = encryptedAesKeyForSender;
                                             encryptedAesKeyForReceiver = encryptedAesKeyForReceiver;

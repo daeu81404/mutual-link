@@ -8,8 +8,19 @@ import path from "path";
 dotenv.config({ path: "../../.env" });
 
 export default defineConfig({
+  base: "./",
+  mode: "development",
   build: {
     emptyOutDir: true,
+    minify: false,
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom", "antd"],
+        },
+      },
+    },
   },
   optimizeDeps: {
     esbuildOptions: {
@@ -21,8 +32,12 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:4943",
+        target:
+          process.env.VITE_DFX_NETWORK === "ic"
+            ? "https://ic0.app"
+            : "http://127.0.0.1:4943",
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },
@@ -30,6 +45,36 @@ export default defineConfig({
     react(),
     environment("all", { prefix: "CANISTER_" }),
     environment("all", { prefix: "DFX_" }),
+    environment("all", { prefix: "VITE_" }),
+    {
+      name: "configure-antd-globals",
+      transformIndexHtml() {
+        return [
+          {
+            tag: "script",
+            attrs: { type: "text/javascript" },
+            children: `
+              window.global = window;
+              const theme = {};
+              Object.assign(globalThis, {
+                getRootPrefixCls: () => "ant",
+                getPrefixCls: (suffixCls, customizePrefixCls) => customizePrefixCls || 'ant-' + suffixCls,
+                getPopupContainer: (node) => node?.parentNode || document.body,
+                getIconPrefixCls: () => "anticon",
+                iconPrefixCls: "anticon",
+                csp: { nonce: "" },
+                theme: theme,
+                getTheme: () => theme,
+                getDesignToken: () => ({}),
+                getComponentSize: () => "middle",
+                getPrefixClassName: (suffixCls, customizePrefixCls) => customizePrefixCls || 'ant-' + suffixCls
+              });
+            `,
+            injectTo: "head-prepend",
+          },
+        ];
+      },
+    },
   ],
   resolve: {
     alias: [
@@ -39,9 +84,11 @@ export default defineConfig({
       },
       { find: "@", replacement: path.resolve(__dirname, "src") },
     ],
-    dedupe: ["@dfinity/agent"],
+    dedupe: ["@dfinity/agent", "antd"],
   },
   define: {
     global: "globalThis",
+    "process.env": process.env,
+    "window.global": "globalThis",
   },
 });

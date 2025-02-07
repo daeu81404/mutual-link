@@ -8,7 +8,15 @@ import { Web3AuthProvider } from "./contexts/Web3AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
 import UserManagement from "./pages/UserManagement/UserManagement";
 import HospitalManagement from "./pages/HospitalManagement/HospitalManagement";
-import { Layout, Badge, Button, Modal, List, Typography } from "antd";
+import {
+  Layout,
+  Badge,
+  Button,
+  Modal,
+  List,
+  Typography,
+  App as AntApp,
+} from "antd";
 import { BellOutlined } from "@ant-design/icons";
 import { useState } from "react";
 
@@ -109,11 +117,13 @@ function AppContent() {
 // 외부 컴포넌트: Provider 설정
 function App() {
   return (
-    <Web3AuthProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </Web3AuthProvider>
+    <AntApp>
+      <Web3AuthProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </Web3AuthProvider>
+    </AntApp>
   );
 }
 

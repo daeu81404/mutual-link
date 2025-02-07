@@ -43,6 +43,7 @@ interface BackendMedicalRecord {
   id: bigint;
   date: bigint;
   phone: string;
+  patientPhone: string;
   patientName: string;
   title: string;
   description: string;
@@ -267,6 +268,14 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
         const limit = BigInt(pagination.pageSize);
         let result;
 
+        console.log("=== 진료기록 조회 시작 ===");
+        console.log("조회 조건:", {
+          의사이름: userInfo.name,
+          역할: type === "send" ? "sender" : "receiver",
+          offset: offset.toString(),
+          limit: limit.toString(),
+        });
+
         if (type === "send") {
           result = await backendActor.getMedicalRecordsByDoctor(
             userInfo.name,
@@ -283,8 +292,25 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           );
         }
 
+        console.log("백엔드 응답:", result);
+
         const formattedRecords = (result.items as any[]).map(
           (record: BackendMedicalRecord) => {
+            console.log("백엔드 레코드 데이터:", {
+              id: record.id.toString(),
+              환자명: record.patientName,
+              환자전화번호: record.patientPhone,
+              phone필드: record.phone,
+              송신의사: {
+                이름: record.fromDoctor,
+                전화번호: record.fromPhone,
+              },
+              수신의사: {
+                이름: record.toDoctor,
+                전화번호: record.toPhone,
+              },
+            });
+
             // 상태값 매핑 로직
             let status = record.status;
             // 모든 페이지에서 상태를 한글로 표시
@@ -312,14 +338,14 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
                 break;
             }
 
-            return {
+            const formatted = {
               id: Number(record.id.toString()),
               date: (() => {
                 const originalDate = record.date.toString();
                 const milliseconds = Math.floor(Number(originalDate) / 1000000);
                 return milliseconds;
               })(),
-              phone: record.phone,
+              phone: record.patientPhone, // patientPhone 사용
               patientName: record.patientName,
               title: record.title,
               description: record.description,
@@ -342,6 +368,22 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
                 : null,
               transferredDoctors: record.transferredDoctors,
             };
+
+            console.log("변환된 레코드 데이터:", {
+              id: formatted.id,
+              환자명: formatted.patientName,
+              환자전화번호: formatted.phone,
+              송신의사: {
+                이름: formatted.fromDoctor,
+                전화번호: formatted.fromPhone,
+              },
+              수신의사: {
+                이름: formatted.toDoctor,
+                전화번호: formatted.toPhone,
+              },
+            });
+
+            return formatted;
           }
         );
 
@@ -351,6 +393,7 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           total: Number(result.total.toString()),
         }));
       } catch (error) {
+        console.error("진료기록 조회 중 에러:", error);
         message.error(
           "의료기록을 불러올 수 없습니다. 네트워크 연결을 확인해주세요."
         );
@@ -654,6 +697,23 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
       setLoading(true);
       setIsSubmitting(true);
 
+      console.log("=== 진료의뢰 시작 ===");
+      console.log("선택된 진료기록:", {
+        id: selectedRecord.id,
+        환자명: selectedRecord.patientName,
+        환자전화번호: selectedRecord.phone,
+        송신의사: {
+          이름: userInfo.name,
+          이메일: userInfo.email,
+          전화번호: selectedRecord.fromPhone,
+        },
+        수신의사: {
+          이름: selectedDoctor.name,
+          이메일: selectedDoctor.email,
+          전화번호: selectedDoctor.phone,
+        },
+      });
+
       // 1. 현재 사용자의 AES 키 복호화
       const decryptedAesKey = await decryptAesKey(
         type === "send"
@@ -737,15 +797,32 @@ const MedicalData: React.FC<MedicalDataProps> = ({ type }) => {
           });
 
           // SMS 전송 로직 추가
+          console.log("=== 진료의뢰 SMS 발송 디버깅 ===");
+          console.log("선택된 진료기록:", {
+            환자명: selectedRecord.patientName,
+            환자전화번호: selectedRecord.phone,
+            송신의사: {
+              이름: userInfo?.name,
+              전화번호: selectedRecord.fromPhone,
+            },
+            수신의사: {
+              이름: selectedDoctor.name,
+              전화번호: selectedDoctor.phone,
+            },
+          });
+
           const smsMessage = `${userInfo?.name}님이 전송한 [${
             selectedRecord.patientName
           }]의료정보 도착\nhttps://mutual-link-d70e6.web.app/?referralId=${
             result.ok.id ? result.ok.id.toString() : result.ok.toString()
           }`;
 
-          // 전화번호에서 하이픈 제거
+          // 환자의 전화번호에서 하이픈 제거
           const phoneNumber = selectedRecord.phone.replace(/-/g, "");
-          console.log("SMS 전송 시도:", { phoneNumber, message: smsMessage });
+          console.log("SMS 발송 정보:", {
+            수신번호: phoneNumber,
+            메시지: smsMessage,
+          });
 
           const response = await fetch(
             "https://8oxqti6xl1.execute-api.ap-northeast-2.amazonaws.com/default/sms",
