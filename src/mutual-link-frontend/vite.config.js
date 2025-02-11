@@ -23,6 +23,13 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
+    include: [
+      "cornerstone-core",
+      "cornerstone-tools",
+      "cornerstone-wado-image-loader",
+      "dicom-parser",
+      "hammerjs",
+    ],
     esbuildOptions: {
       define: {
         global: "globalThis",
@@ -84,7 +91,14 @@ export default defineConfig({
       },
       { find: "@", replacement: path.resolve(__dirname, "src") },
     ],
-    dedupe: ["@dfinity/agent", "antd"],
+    dedupe: [
+      "@dfinity/agent",
+      "antd",
+      "cornerstone-core",
+      "cornerstone-tools",
+      "cornerstone-wado-image-loader",
+      "dicom-parser",
+    ],
   },
   define: {
     global: "globalThis",

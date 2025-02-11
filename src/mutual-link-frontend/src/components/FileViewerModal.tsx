@@ -1,11 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Drawer, Button, Space, Tabs, Radio, Spin } from "antd";
-import cornerstone from "cornerstone-core";
-import cornerstoneWADOImageLoader from "cornerstone-wado-image-loader";
-import cornerstoneTools from "cornerstone-tools";
-import Hammer from "hammerjs";
 import { Document, Page, pdfjs } from "react-pdf";
-import dicomParser from "dicom-parser";
 import {
   FileImageOutlined,
   FilePdfOutlined,
@@ -20,11 +15,64 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
 
-// Cornerstone Tools 초기화
-console.log("Cornerstone 초기화 시작");
-cornerstoneTools.external.cornerstone = cornerstone;
-cornerstoneTools.external.Hammer = Hammer;
-console.log("Cornerstone Tools 초기화 완료");
+// 전역 객체 타입 정의
+declare global {
+  interface Window {
+    cornerstone: any;
+    cornerstoneTools: any;
+    cornerstoneWADOImageLoader: any;
+    dicomParser: any;
+    Hammer: any;
+  }
+}
+
+// Cornerstone 초기화 함수
+const initializeCornerstone = async () => {
+  try {
+    const cs = window.cornerstone;
+    const csTools = window.cornerstoneTools;
+    const csWADOImageLoader = window.cornerstoneWADOImageLoader;
+    const dicomParser = window.dicomParser;
+    const Hammer = window.Hammer;
+
+    if (!cs || !csTools || !csWADOImageLoader || !dicomParser || !Hammer) {
+      throw new Error("필요한 라이브러리가 로드되지 않았습니다.");
+    }
+
+    // Cornerstone Tools 초기화
+    csTools.external.cornerstone = cs;
+    csTools.external.Hammer = Hammer;
+
+    // WADO Image Loader 초기화
+    csWADOImageLoader.external.cornerstone = cs;
+    csWADOImageLoader.external.dicomParser = dicomParser;
+
+    // Web Worker 설정
+    const isInitialized = (window as any).cornerstoneWADOImageLoaderInitialized;
+    if (!isInitialized) {
+      csWADOImageLoader.webWorkerManager.initialize({
+        maxWebWorkers: navigator.hardwareConcurrency || 1,
+        startWebWorkersOnDemand: true,
+        taskConfiguration: {
+          decodeTask: {
+            initializeCodecsOnStartup: true,
+            usePDFJS: false,
+            strict: false,
+          },
+        },
+      });
+      (window as any).cornerstoneWADOImageLoaderInitialized = true;
+    }
+
+    // Cornerstone Tools 초기화
+    csTools.init();
+
+    console.log("Cornerstone 초기화 완료");
+  } catch (error) {
+    console.error("Cornerstone 초기화 실패:", error);
+    throw error;
+  }
+};
 
 interface FileViewerModalProps {
   visible: boolean;
@@ -61,33 +109,33 @@ export default function FileViewerModal({
   const SCROLL_THRESHOLD = 100; // 스크롤 임계값 설정
   const [isPdfLoading, setIsPdfLoading] = useState(false);
 
+  // 컴포넌트 마운트 시 Cornerstone 초기화
   useEffect(() => {
-    // Cornerstone 초기화
-    cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
-    cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
+    let retryCount = 0;
+    const maxRetries = 5;
+    const retryInterval = 1000; // 1초
 
-    // WADO Image Loader 초기화
-    cornerstoneWADOImageLoader.webWorkerManager.initialize({
-      maxWebWorkers: navigator.hardwareConcurrency || 1,
-      startWebWorkersOnDemand: true,
-      taskConfiguration: {
-        decodeTask: {
-          initializeCodecsOnStartup: true,
-          usePDFJS: false,
-          strict: false,
-        },
-      },
-    });
+    const initWithRetry = async () => {
+      try {
+        await initializeCornerstone();
+      } catch (error) {
+        console.error(`Cornerstone 초기화 시도 ${retryCount + 1} 실패:`, error);
+        if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(initWithRetry, retryInterval);
+        } else {
+          setError(
+            "Cornerstone 초기화에 실패했습니다. 페이지를 새로고침해주세요."
+          );
+        }
+      }
+    };
 
-    // PDF.js 워커 설정
-    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.js",
-      import.meta.url
-    ).toString();
+    initWithRetry();
 
     return () => {
       if (dicomContainerRef.current) {
-        cornerstone.disable(dicomContainerRef.current);
+        window.cornerstone.disable(dicomContainerRef.current);
       }
       if (pdfUrl) {
         URL.revokeObjectURL(pdfUrl);
@@ -99,48 +147,53 @@ export default function FileViewerModal({
   useEffect(() => {
     if (visible) {
       setIsLoading(true);
-      // 모달이 열릴 때 DICOM 탭을 기본으로 설정하고 약간의 딜레이 후 초기화
       setActiveTab("dicom");
       setCurrentDicomIndex(0);
 
-      // 약간의 딜레이 후 DICOM 초기화 (DOM이 완전히 렌더링된 후)
       setTimeout(() => {
         if (dicomContainerRef.current && files.dicom.length > 0) {
           try {
-            // Cornerstone 초기화
-            cornerstone.enable(dicomContainerRef.current);
-
-            // 도구 초기화
-            cornerstoneTools.init();
-
-            // 도구 설정
-            const WwwcTool = cornerstoneTools.WwwcTool;
-            const PanTool = cornerstoneTools.PanTool;
-            const ZoomTool = cornerstoneTools.ZoomTool;
-
-            // 도구 추가 및 활성화
-            cornerstoneTools.addTool(WwwcTool);
-            cornerstoneTools.addTool(PanTool);
-            cornerstoneTools.addTool(ZoomTool);
-
-            cornerstoneTools.setToolActive("Wwwc", { mouseButtonMask: 1 });
-            cornerstoneTools.setToolActive("Pan", { mouseButtonMask: 2 });
-            cornerstoneTools.setToolActive("Zoom", { mouseButtonMask: 4 });
+            // Cornerstone element 초기화
+            if (!dicomContainerRef.current.dataset.cornerstoneEnabled) {
+              window.cornerstone.enable(dicomContainerRef.current);
+            }
 
             // DICOM 파일 로드
             const file = files.dicom[0];
             const blob = new Blob([file], { type: "application/dicom" });
             const imageId =
-              cornerstoneWADOImageLoader.wadouri.fileManager.add(blob);
+              window.cornerstoneWADOImageLoader.wadouri.fileManager.add(blob);
 
-            cornerstone.loadImage(imageId).then(
-              (image) => {
+            window.cornerstone.loadImage(imageId).then(
+              (image: any) => {
                 if (dicomContainerRef.current) {
-                  cornerstone.displayImage(dicomContainerRef.current, image);
+                  window.cornerstone.displayImage(
+                    dicomContainerRef.current,
+                    image
+                  );
+
+                  // 도구 설정
+                  const WwwcTool = window.cornerstoneTools.WwwcTool;
+                  const PanTool = window.cornerstoneTools.PanTool;
+                  const ZoomTool = window.cornerstoneTools.ZoomTool;
+
+                  window.cornerstoneTools.addTool(WwwcTool);
+                  window.cornerstoneTools.addTool(PanTool);
+                  window.cornerstoneTools.addTool(ZoomTool);
+
+                  window.cornerstoneTools.setToolActive("Wwwc", {
+                    mouseButtonMask: 1,
+                  });
+                  window.cornerstoneTools.setToolActive("Pan", {
+                    mouseButtonMask: 2,
+                  });
+                  window.cornerstoneTools.setToolActive("Zoom", {
+                    mouseButtonMask: 4,
+                  });
                 }
                 setIsLoading(false);
               },
-              (error) => {
+              (error: any) => {
                 console.error("DICOM 이미지 로드 실패:", error);
                 setError("DICOM 이미지를 로드하는데 실패했습니다.");
                 setIsLoading(false);
@@ -158,7 +211,7 @@ export default function FileViewerModal({
     } else {
       // 모달이 닫힐 때 cleanup
       if (dicomContainerRef.current?.dataset.cornerstoneEnabled) {
-        cornerstone.disable(dicomContainerRef.current);
+        window.cornerstone.disable(dicomContainerRef.current);
       }
       if (pdfUrl) {
         URL.revokeObjectURL(pdfUrl);
@@ -221,21 +274,22 @@ export default function FileViewerModal({
 
     try {
       if (containerRef.current.dataset.cornerstoneEnabled) {
-        cornerstone.disable(containerRef.current);
+        window.cornerstone.disable(containerRef.current);
       }
-      cornerstone.enable(containerRef.current);
+      window.cornerstone.enable(containerRef.current);
 
       const file = files.dicom[index];
       const blob = new Blob([file], { type: "application/dicom" });
-      const imageId = cornerstoneWADOImageLoader.wadouri.fileManager.add(blob);
+      const imageId =
+        window.cornerstoneWADOImageLoader.wadouri.fileManager.add(blob);
 
-      cornerstone.loadImage(imageId).then(
-        (image) => {
+      window.cornerstone.loadImage(imageId).then(
+        (image: any) => {
           if (containerRef.current) {
-            cornerstone.displayImage(containerRef.current, image);
+            window.cornerstone.displayImage(containerRef.current, image);
           }
         },
-        (error) => {
+        (error: Error) => {
           console.error("DICOM 이미지 로드 실패:", error);
           setError("DICOM 이미지를 로드하는데 실패했습니다.");
         }
@@ -311,7 +365,7 @@ export default function FileViewerModal({
 
     // cleanup
     if (dicomContainerRef.current?.dataset.cornerstoneEnabled) {
-      cornerstone.disable(dicomContainerRef.current);
+      window.cornerstone.disable(dicomContainerRef.current);
     }
     if (pdfUrl) {
       URL.revokeObjectURL(pdfUrl);
