@@ -1,6 +1,7 @@
 [
   {
     match: "**/*",
+    security_policy: "standard",
     headers: {
       // Security: The Content Security Policy (CSP) given below aims at working with many apps rather than providing maximal security.
       // We recommend tightening the CSP for your specific application. Some recommendations are as follows:
@@ -22,7 +23,7 @@
       // - We added img-src data: because data: images are used often.
       // - frame-ancestors: none mitigates clickjacking attacks. See https://owasp.org/www-community/attacks/Clickjacking.
       // "Content-Security-Policy": "default-src 'self';script-src 'self';connect-src 'self' http://localhost:* https://icp0.io https://*.icp0.io https://icp-api.io;img-src 'self' data:;style-src * 'unsafe-inline';style-src-elem * 'unsafe-inline';font-src *;object-src 'none';base-uri 'self';frame-ancestors 'none';form-action 'self';upgrade-insecure-requests;",
-      "Content-Security-Policy": "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline' blob:; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline';",
+      "Content-Security-Policy": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob: 'wasm-unsafe-eval'; worker-src * data: blob:; connect-src * 'unsafe-inline' data: blob:; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline';",
 
       // Security: The permissions policy disables all features for security reasons. If your site needs such permissions, activate them.
       // To configure permissions go here https://www.permissionspolicy.com/
