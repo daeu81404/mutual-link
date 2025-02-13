@@ -107,23 +107,34 @@ const checkNotificationHistory = async (
 const initActor = async () => {
   try {
     const currentHost = window.location.hostname;
-    const host = currentHost.includes("localhost")
-      ? `http://${currentHost}:4943`
-      : "http://127.0.0.1:4943";
+    const isIcMainnet =
+      /[a-z0-9-]+\.icp0\.io/.test(currentHost) ||
+      /[a-z0-9-]+\.ic0\.app/.test(currentHost);
+
+    const host = isIcMainnet ? "https://icp0.io" : "http://127.0.0.1:4943";
 
     const agent = new HttpAgent({ host });
 
-    if (host.includes("localhost") || host.includes("127.0.0.1")) {
+    if (!isIcMainnet) {
       await agent.fetchRootKey();
     }
 
-    const canisterId = "bkyz2-fmaaa-aaaaa-qaaaq-cai";
+    const canisterId =
+      import.meta.env.CANISTER_ID_MUTUAL_LINK_BACKEND ||
+      (window as any).__CANISTER_ID_MUTUAL_LINK_BACKEND__;
+
+    console.log("=== Notification Actor 초기화 ===");
+    console.log("현재 호스트:", currentHost);
+    console.log("IC 메인넷?:", isIcMainnet);
+    console.log("설정된 호스트:", host);
+    console.log("Canister ID:", canisterId);
 
     return Actor.createActor(idlFactory, {
       agent,
       canisterId,
     });
   } catch (error) {
+    console.error("Actor 초기화 중 에러:", error);
     throw error;
   }
 };
@@ -174,42 +185,63 @@ export const subscribeToReferralUpdates = (
   userEmail: string,
   onUpdate: (data: any) => void
 ) => {
+  console.log("=== 알림 구독 시작 ===");
+  console.log("사용자 이메일:", userEmail);
+
   notifiedReferrals.clear();
+  previousStates.clear(); // 명시적으로 이전 상태 초기화
 
   const referralsRef = ref(database, "referrals");
+  let isInitialized = false; // 초기화 상태 추적
 
-  // 초기 상태 로드 및 PENDING에서 변경된 항목 확인
-  get(referralsRef).then(async (snapshot) => {
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      for (const [referralId, referral] of Object.entries<ReferralNotification>(
-        data
-      )) {
-        // 수신자 또는 송신자인 경우 처리
-        if (
-          referral.toEmail === userEmail ||
-          referral.fromEmail === userEmail
-        ) {
-          const status = referral.status;
+  // 초기 상태 로드
+  const loadInitialState = async () => {
+    try {
+      console.log("초기 상태 로드 시작");
+      const snapshot = await get(referralsRef);
 
-          // 현재 상태만 저장하고 알림은 생성하지 않음
-          previousStates.set(referralId, status);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        for (const [
+          referralId,
+          referral,
+        ] of Object.entries<ReferralNotification>(data)) {
+          if (
+            referral.toEmail === userEmail ||
+            referral.fromEmail === userEmail
+          ) {
+            console.log(
+              `초기 상태 설정 - ID: ${referralId}, 상태: ${referral.status}`
+            );
+            previousStates.set(referralId, referral.status);
+          }
         }
       }
+
+      isInitialized = true;
+      console.log("초기 상태 로드 완료");
+    } catch (error) {
+      console.error("초기 상태 로드 실패:", error);
+      throw error;
     }
-  });
+  };
 
   // 실시간 업데이트 구독
   const unsubscribe = onValue(
     referralsRef,
     async (snapshot) => {
+      if (!isInitialized) {
+        console.log("초기화 대기 중...");
+        await loadInitialState();
+        return;
+      }
+
       if (!snapshot.exists()) return;
 
       const data = snapshot.val();
       for (const [referralId, referral] of Object.entries<ReferralNotification>(
         data
       )) {
-        // 수신자 또는 송신자인 경우 처리
         if (
           referral.toEmail === userEmail ||
           referral.fromEmail === userEmail
@@ -217,33 +249,47 @@ export const subscribeToReferralUpdates = (
           const prevStatus = previousStates.get(referralId);
           const currentStatus = referral.status;
 
-          // 이전 상태가 있고, 상태가 변경된 경우에만 처리
+          console.log(`
+=== 상태 변경 감지 ===
+Referral ID: ${referralId}
+이전 상태: ${prevStatus}
+현재 상태: ${currentStatus}
+현재 사용자: ${userEmail}
+송신자: ${referral.fromEmail}
+수신자: ${referral.toEmail}
+`);
+
+          // 상태 변경 처리
           if (prevStatus && prevStatus !== currentStatus) {
-            // 수신자이고 상태가 PENDING에서 APPROVED로 변경되었을 때
+            // 수신자의 승인 처리
             if (
               referral.toEmail === userEmail &&
               prevStatus === "PENDING" &&
               currentStatus === "APPROVED"
             ) {
+              console.log("수신자의 승인 처리 시작");
               await handleNotification(
                 userEmail,
                 referralId,
                 referral,
                 onUpdate
               );
+              console.log("수신자의 승인 처리 완료");
             }
-            // 송신자이고 상태가 PENDING에서 REJECTED로 변경되었을 때
+            // 송신자의 상태 변경 처리
             else if (
               referral.fromEmail === userEmail &&
               prevStatus === "PENDING" &&
-              currentStatus === "REJECTED"
+              (currentStatus === "APPROVED" || currentStatus === "REJECTED")
             ) {
+              console.log(`송신자의 ${currentStatus} 상태 변경 처리 시작`);
               await handleNotification(
                 userEmail,
                 referralId,
                 referral,
                 onUpdate
               );
+              console.log(`송신자의 ${currentStatus} 상태 변경 처리 완료`);
             }
           }
 
@@ -253,11 +299,14 @@ export const subscribeToReferralUpdates = (
       }
     },
     (error) => {
+      console.error("Firebase 실시간 업데이트 에러:", error);
       throw error;
     }
   );
 
+  // 클린업 함수
   return () => {
+    console.log("=== 알림 구독 정리 ===");
     previousStates.clear();
     notifiedReferrals.clear();
     unsubscribe();
