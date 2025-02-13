@@ -7,6 +7,15 @@ import path from "path";
 
 dotenv.config({ path: "../../.env" });
 
+// 환경 변수 로깅
+console.log("=== Vite Config Environment Variables ===");
+console.log("process.env.DFX_NETWORK:", process.env.DFX_NETWORK);
+console.log(
+  "process.env.CANISTER_ID_MUTUAL_LINK_BACKEND:",
+  process.env.CANISTER_ID_MUTUAL_LINK_BACKEND
+);
+console.log("전체 process.env:", process.env);
+
 export default defineConfig({
   base: "./",
   mode: "development",
@@ -102,7 +111,18 @@ export default defineConfig({
   },
   define: {
     global: "globalThis",
-    "process.env": process.env,
-    "window.global": "globalThis",
+    __DFX_NETWORK__: JSON.stringify(process.env.DFX_NETWORK),
+    __CANISTER_ID_MUTUAL_LINK_BACKEND__: JSON.stringify(
+      process.env.CANISTER_ID_MUTUAL_LINK_BACKEND
+    ),
+    "import.meta.env.DFX_NETWORK": JSON.stringify(process.env.DFX_NETWORK),
+    "import.meta.env.CANISTER_ID_MUTUAL_LINK_BACKEND": JSON.stringify(
+      process.env.CANISTER_ID_MUTUAL_LINK_BACKEND
+    ),
+    "process.env": {
+      DFX_NETWORK: process.env.DFX_NETWORK,
+      CANISTER_ID_MUTUAL_LINK_BACKEND:
+        process.env.CANISTER_ID_MUTUAL_LINK_BACKEND,
+    },
   },
 });

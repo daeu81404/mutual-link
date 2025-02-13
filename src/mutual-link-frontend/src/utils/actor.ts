@@ -12,7 +12,17 @@ export const createActor = async () => {
     console.log("=== Actor 생성 시작 ===");
     console.log("현재 시간:", new Date().toISOString());
 
-    const network = import.meta.env.VITE_DFX_NETWORK;
+    // 환경 변수 접근 시도 (여러 방법)
+    console.log("=== 환경 변수 접근 시도 ===");
+    console.log("1. import.meta.env:", import.meta.env);
+    console.log("2. window.__DFX_NETWORK__:", (window as any).__DFX_NETWORK__);
+    console.log(
+      "3. window.__CANISTER_ID_MUTUAL_LINK_BACKEND__:",
+      (window as any).__CANISTER_ID_MUTUAL_LINK_BACKEND__
+    );
+
+    const network =
+      import.meta.env.DFX_NETWORK || (window as any).__DFX_NETWORK__;
     const isLocal = network === "local";
     const currentHost = window.location.hostname;
     const currentProtocol = window.location.protocol;
@@ -89,9 +99,13 @@ export const createActor = async () => {
         }
       }
 
-      const canisterId = import.meta.env.VITE_BACKEND_CANISTER_ID;
+      const canisterId =
+        import.meta.env.CANISTER_ID_MUTUAL_LINK_BACKEND ||
+        (window as any).__CANISTER_ID_MUTUAL_LINK_BACKEND__;
+
       console.log("=== Canister 정보 ===");
-      console.log("Canister ID:", canisterId);
+      console.log("최종 선택된 network:", network);
+      console.log("최종 선택된 Canister ID:", canisterId);
       console.log("IDL Factory 존재 여부:", !!idlFactory);
 
       console.log("Actor 생성 시작");
