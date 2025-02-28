@@ -10,58 +10,127 @@ Mutual Link is transforming the medical referral system through a decentralized 
 
 ### Technical Motivation
 
-The implementation of ICP ensures our service meets strict availability and confidentiality requirements, which are critical for handling sensitive medical data while adhering to personal information protection laws. After evaluating various blockchain and distributed storage solutions, ICP was selected for its:
+The implementation of ICP is essential for meeting availability and confidentiality requirements while handling sensitive medical data in compliance with personal information protection laws. After evaluating various blockchain and distributed storage solutions, ICP was selected for its:
 
-- **Chain Key Cryptography**: Enables secure and efficient access control
-- **Subnet Architecture**: Provides high scalability and fault tolerance
-- **On-chain Asset Delivery**: Eliminates reliance on traditional CDNs
-- **Web Integration**: Seamless connectivity with existing web infrastructure
+- **Subnet Architecture**: Provides high scalability and fault tolerance with dedicated subnet replication across multiple data centers
+- **On-chain Asset Delivery**: Eliminates reliance on traditional CDNs through certified canister state and boundary nodes
+- **Web Integration**: Seamless connectivity with existing web infrastructure via HTTP outcalls and canister-based frontend delivery
+
+### ICP Technical Advantages
+
+- **Deterministic Execution Environment**: Guarantees consistent computation results across all replicas, essential for medical data integrity
+- **Orthogonal Persistence**: Automatic state persistence without traditional databases, reducing development complexity and attack surface
+- **Query/Update Call Separation**: Optimizes performance with non-consensus reads and consensus-based writes
+- **Canister Gas Model**: Predictable computation costs with cycles instead of variable gas fees
+- **Certified Variables**: Cryptographically verifiable canister state without trusting the boundary node
 
 ## Architecture
 
+### Data Flow
+
+```mermaid
+sequenceDiagram
+    participant Patient
+    participant Doctor
+    participant WebApp
+    participant MainCan as Main Canister
+    participant Web3Auth
+    participant IPFS
+
+    Patient->>WebApp: User Registration/Login
+    WebApp->>Web3Auth: Authentication Request
+    Web3Auth-->>WebApp: Authentication Token
+
+    Doctor->>WebApp: Doctor Registration
+    WebApp->>Web3Auth: Doctor Authentication
+    WebApp->>MainCan: Register Credentials (createDoctor)
+    MainCan-->>WebApp: Registration Confirmation
+
+    Patient->>WebApp: Upload Medical Data
+    WebApp->>WebApp: Encrypt Data
+    WebApp->>IPFS: Store Encrypted Data
+    IPFS-->>WebApp: Content ID (CID)
+    WebApp->>MainCan: Register CID and Metadata (createMedicalRecord)
+
+    Patient->>WebApp: Grant Data Access to Doctor
+    WebApp->>MainCan: Set Access Permission (transferMedicalRecord)
+
+    Doctor->>WebApp: Request Patient Data
+    WebApp->>MainCan: Verify Access Permission (getMedicalRecord)
+    MainCan-->>WebApp: CID and Access Key
+    WebApp->>IPFS: Query Encrypted Data
+    IPFS-->>WebApp: Encrypted Data
+    WebApp->>WebApp: Decrypt and Display Data
+```
+
 ### Backend Canisters
 
-The system is built using the following canister architecture:
+The current system is built using the following canister architecture:
 
-1. **Authentication Canister**
+1. **Main Canister**
 
-   - Integrates with Web3Auth for decentralized identity management
-   - Implements ECDSA signature verification
-   - Manages user session states through orthogonal persistence
+   This single backend canister consists of two major internal modules:
 
-2. **Doctor Management Canister**
+   - **Doctor Management Module**
 
-   - Handles doctor registration, verification, and credentials
-   - Implements secure public key infrastructure for end-to-end encryption
-   - Manages searchable doctor profiles with indexing capabilities
+     - Handles doctor registration, verification, and credentials
+     - Manages public key infrastructure
+     - Indexes searchable doctor profiles
+     - Efficient lookup based on hashmap
+     - Verifies credentials through digital signatures
 
-3. **Medical Record Management Canister**
+   - **Medical Record Management Module**
+     - Implements access control for medical records
+     - Verifies data integrity using SHA-256 hashing
+     - Maintains immutable record transfer history
+     - Implements time-based access control with automatic expiration
+     - Uses BTree structures for efficient record searching
 
-   - Implements RBAC (Role-Based Access Control) for record access
-   - Provides cryptographic verification of data integrity
-   - Supports record transfer history with immutable audit trails
-
-4. **Frontend Asset Canister**
+2. **Frontend Asset Canister**
    - Delivers web assets directly from the Internet Computer
-   - Implements content security policies for XSS protection
+   - Implements security content policies
+   - Verifies boundary nodes
+   - Streams large assets
+   - Optimizes client-side caching
+
+### Inter-Canister Communication
+
+- **Inter-module Communication**: Efficient communication through direct function calls between doctor management and medical record management modules within the main canister
+- **Frontend-Backend Communication**: Type safety guaranteed through Candid interface
+- **Error Handling**: Implementation of error handling patterns based on Result type
+- **Response Optimization**: Efficient pagination and response structuring for query and update calls
 
 ### Data Encryption Flow
 
 Medical records follow a secure encryption process:
 
-1. Data is encrypted client-side using AES-256-GCM
-2. The AES key is encrypted using the recipient's public RSA key
-3. Encrypted data is stored on IPFS with CIDs recorded on-chain
-4. Access control is managed through canister smart contracts
+1. Data is encrypted client-side using AES-256-GCM with authenticated encryption
+2. The AES key is encrypted using the recipient's public RSA-2048 key
+3. Encrypted data is stored on IPFS with CIDs recorded on-chain in certified variables
+4. Access control is managed through canister smart contracts with principal-based verification
 5. Data transfer occurs without exposing unencrypted content to intermediaries
+6. Non-deterministic initialization vectors (IV) ensure encryption uniqueness
+7. Digital signatures verify data authenticity and integrity
 
 ## Technology Stack
 
-- **Frontend**: Next.js, TypeScript, React Query for state management
+- **Frontend**: Next.js, TypeScript, React Query (state management)
 - **Backend**: Internet Computer Protocol (ICP), Motoko
-- **Smart Contracts**: Motoko with actor-based concurrency model
-- **Security**: Web3Auth, RSA+AES hybrid encryption, threshold ECDSA
+- **Smart Contracts**: Motoko with actor-based concurrency model and stable memory
+- **Security**: Web3Auth, RSA+AES hybrid encryption
 - **Storage**: Certified on-chain state with IPFS integration
+- **Canister Design**: Actor model with message-passing concurrency
+- **API Interface**: Candid IDL for cross-language type safety
+- **State Management**: Orthogonal persistence with stable variables
+
+## Performance Optimization Strategies
+
+- **Query Caching**: Implementing caching for frequently accessed data to reduce redundant computation
+- **Incremental Updates**: Using delta-based updates instead of full state transfers
+- **Pagination Patterns**: Implementing cursor-based pagination for large data sets
+- **Computation Batching**: Grouping related operations to minimize consensus rounds
+- **Stable Storage Layout**: Optimizing storage patterns for efficient upgrades
+- **Cycle Optimization**: Implementing cycle-efficient algorithms to reduce computation costs
 
 ## Project Structure
 
@@ -73,11 +142,14 @@ mutual-link/
 │   │   ├── DoctorManagement.mo   # Doctor management module
 │   │   └── MedicalRecordManagement.mo # Medical record management module
 │   ├── mutual-link-frontend/     # Frontend assets
-│   │   ├── components/           # Reusable UI components
-│   │   ├── pages/                # Next.js page components
-│   │   ├── services/             # API service integrations
-│   │   ├── hooks/                # Custom React hooks
-│   │   └── utils/                # Helper utilities
+│   │   ├── src/
+│   │   │   ├── components/       # Reusable UI components
+│   │   │   ├── pages/            # Page components
+│   │   │   ├── services/         # API service integrations
+│   │   │   ├── hooks/            # Custom React hooks
+│   │   │   └── utils/            # Helper utilities
+│   │   ├── public/               # Static assets
+│   │   └── dist/                 # Build output
 │   └── declarations/             # Auto-generated interfaces
 ├── dfx.json                      # DFX configuration file
 └── package.json                  # Project dependencies
@@ -85,21 +157,21 @@ mutual-link/
 
 ## Technical Implementation Roadmap
 
-### Milestone 1: Web3Auth Integration and User Registration Canister
+### Milestone 1: Web3Auth Integration and User Registration Canister (1 month)
 
-- Implement authentication canister with Web3Auth ECDSA integration
+- Implement Web3Auth integration authentication canister
 - Develop persistent user registration data structures with stable memory
 - Initialize frontend asset canister with content security policies
-- Implement cross-canister calls between auth and profile systems
+- Implement cross-canister calls between authentication and profile systems
 
-### Milestone 2: Role-Based Access Control (RBAC) Canister
+### Milestone 2: Role-Based Access Control (RBAC) Canister (1 month)
 
 - Design permission hierarchy using principal-based access control
 - Implement role management canister with upgrade mechanisms
-- Develop administrator verification with threshold signatures
+- Develop administrator verification with secure authentication
 - Implement security guard patterns for method access control
 
-### Milestone 3: Integration Testing and System Launch
+### Milestone 3: Integration Testing and System Launch (1 month)
 
 - Develop integration test suite with Motoko test library
 - Implement end-to-end testing with simulated user flows
@@ -144,6 +216,10 @@ npm start
 ```
 
 This starts a server at `http://localhost:8080`, proxying API requests to the replica at port 4943.
+
+## Partner Institutions
+
+Currently, we are collaborating with 10 hospitals, including Korea's top four: Seoul National University Hospital, Yonsei University Severance Hospital, Samsung Medical Center, and Asan Medical Center, to conduct pilot testing. This collaboration enables us to validate service effectiveness in real healthcare settings and continuously improve our offerings based on user feedback.
 
 ## License
 
