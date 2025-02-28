@@ -1,7 +1,6 @@
 # Mutual Link
 
 <div align="center">
-  <img src="https://via.placeholder.com/200x200.png?text=Mutual+Link" alt="Mutual Link Logo" width="200" height="200"/>
   <p><strong>A Decentralized Platform for Medical Data Sovereignty and Efficient Healthcare Services</strong></p>
 </div>
 
