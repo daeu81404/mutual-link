@@ -33,32 +33,32 @@ sequenceDiagram
     participant Patient
     participant DoctorA
     participant DoctorB
-    participant WebApp Canister
-    participant MainCan as Main Canister
+    participant Front Canister
+    participant MainCan as Backend Canister
     participant Web3Auth
     participant IPFS
 
-    DoctorB->>WebApp Canister: DoctorB Login
-    WebApp Canister->>Web3Auth: DoctorA Request
+    DoctorB->>Front Canister: DoctorB Login
+    Front Canister->>Web3Auth: DoctorA Request
 
-    DoctorA->>WebApp Canister: DoctorA Login
-    WebApp Canister->>Web3Auth: DoctorA Authentication
+    DoctorA->>Front Canister: DoctorA Login
+    Front Canister->>Web3Auth: DoctorA Authentication
 
-    DoctorB->>WebApp Canister: Upload Medical Data
-    WebApp Canister->>WebApp Canister: Encrypt Data
-    WebApp Canister->>IPFS: Store Encrypted Data
-    IPFS-->>WebApp Canister: Content ID (CID)
-    WebApp Canister->>MainCan: Register CID and Metadata (createMedicalRecord)
+    DoctorB->>Front Canister: Upload Medical Data
+    Front Canister->>Front Canister: Encrypt Data
+    Front Canister->>IPFS: Store Encrypted Data
+    IPFS-->>Front Canister: Content ID (CID)
+    Front Canister->>MainCan: Register CID and Metadata (createMedicalRecord)
 
-    Patient->>WebApp Canister: Grant Data Access to DoctorA
-    WebApp Canister->>MainCan: Set Access Permission (transferMedicalRecord)
+    Patient->>Front Canister: Grant Data Access to DoctorA
+    Front Canister->>MainCan: Set Access Permission (transferMedicalRecord)
 
-    DoctorA->>WebApp Canister: Request Patient Data
-    WebApp Canister->>MainCan: Verify Access Permission (getMedicalRecord)
-    MainCan-->>WebApp Canister: CID and Access Key
-    WebApp Canister->>IPFS: Query Encrypted Data
-    IPFS-->>WebApp Canister: Encrypted Data
-    WebApp Canister->>WebApp Canister: Decrypt and Display Data
+    DoctorA->>Front Canister: Request Patient Data
+    Front Canister->>MainCan: Verify Access Permission (getMedicalRecord)
+    MainCan-->>Front Canister: CID and Access Key
+    Front Canister->>IPFS: Query Encrypted Data
+    IPFS-->>Front Canister: Encrypted Data
+    Front Canister->>Front Canister: Decrypt and Display Data
 ```
 
 ### Backend Canisters
