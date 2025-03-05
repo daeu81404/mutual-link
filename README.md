@@ -33,32 +33,32 @@ sequenceDiagram
     participant Patient
     participant DoctorA
     participant DoctorB
-    participant WebApp
+    participant WebApp Canister
     participant MainCan as Main Canister
     participant Web3Auth
     participant IPFS
 
-    DoctorB->>WebApp: DoctorB Login
-    WebApp->>Web3Auth: DoctorA Request
+    DoctorB->>WebApp Canister: DoctorB Login
+    WebApp Canister->>Web3Auth: DoctorA Request
 
-    DoctorA->>WebApp: DoctorA Login
-    WebApp->>Web3Auth: DoctorA Authentication
+    DoctorA->>WebApp Canister: DoctorA Login
+    WebApp Canister->>Web3Auth: DoctorA Authentication
 
-    DoctorB->>WebApp: Upload Medical Data
-    WebApp->>WebApp: Encrypt Data
-    WebApp->>IPFS: Store Encrypted Data
-    IPFS-->>WebApp: Content ID (CID)
-    WebApp->>MainCan: Register CID and Metadata (createMedicalRecord)
+    DoctorB->>WebApp Canister: Upload Medical Data
+    WebApp Canister->>WebApp Canister: Encrypt Data
+    WebApp Canister->>IPFS: Store Encrypted Data
+    IPFS-->>WebApp Canister: Content ID (CID)
+    WebApp Canister->>MainCan: Register CID and Metadata (createMedicalRecord)
 
-    Patient->>WebApp: Grant Data Access to DoctorA
-    WebApp->>MainCan: Set Access Permission (transferMedicalRecord)
+    Patient->>WebApp Canister: Grant Data Access to DoctorA
+    WebApp Canister->>MainCan: Set Access Permission (transferMedicalRecord)
 
-    DoctorA->>WebApp: Request Patient Data
-    WebApp->>MainCan: Verify Access Permission (getMedicalRecord)
-    MainCan-->>WebApp: CID and Access Key
-    WebApp->>IPFS: Query Encrypted Data
-    IPFS-->>WebApp: Encrypted Data
-    WebApp->>WebApp: Decrypt and Display Data
+    DoctorA->>WebApp Canister: Request Patient Data
+    WebApp Canister->>MainCan: Verify Access Permission (getMedicalRecord)
+    MainCan-->>WebApp Canister: CID and Access Key
+    WebApp Canister->>IPFS: Query Encrypted Data
+    IPFS-->>WebApp Canister: Encrypted Data
+    WebApp Canister->>WebApp Canister: Decrypt and Display Data
 ```
 
 ### Backend Canisters
