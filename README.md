@@ -31,31 +31,29 @@ The implementation of ICP is essential for meeting availability and confidential
 ```mermaid
 sequenceDiagram
     participant Patient
-    participant Doctor
+    participant DoctorA
+    participant DoctorB
     participant WebApp
     participant MainCan as Main Canister
     participant Web3Auth
     participant IPFS
 
-    Patient->>WebApp: User Registration/Login
-    WebApp->>Web3Auth: Authentication Request
-    Web3Auth-->>WebApp: Authentication Token
+    DoctorB->>WebApp: DoctorB Login
+    WebApp->>Web3Auth: DoctorA Request
 
-    Doctor->>WebApp: Doctor Registration
-    WebApp->>Web3Auth: Doctor Authentication
-    WebApp->>MainCan: Register Credentials (createDoctor)
-    MainCan-->>WebApp: Registration Confirmation
+    DoctorA->>WebApp: DoctorA Login
+    WebApp->>Web3Auth: DoctorA Authentication
 
-    Patient->>WebApp: Upload Medical Data
+    DoctorB->>WebApp: Upload Medical Data
     WebApp->>WebApp: Encrypt Data
     WebApp->>IPFS: Store Encrypted Data
     IPFS-->>WebApp: Content ID (CID)
     WebApp->>MainCan: Register CID and Metadata (createMedicalRecord)
 
-    Patient->>WebApp: Grant Data Access to Doctor
+    Patient->>WebApp: Grant Data Access to DoctorA
     WebApp->>MainCan: Set Access Permission (transferMedicalRecord)
 
-    Doctor->>WebApp: Request Patient Data
+    DoctorA->>WebApp: Request Patient Data
     WebApp->>MainCan: Verify Access Permission (getMedicalRecord)
     MainCan-->>WebApp: CID and Access Key
     WebApp->>IPFS: Query Encrypted Data
