@@ -39,7 +39,7 @@ sequenceDiagram
     participant IPFS
 
     DoctorB->>Front Canister: DoctorB Login
-    Front Canister->>Web3Auth: DoctorA Request
+    Front Canister->>Web3Auth: DoctorB Authentication
 
     DoctorA->>Front Canister: DoctorA Login
     Front Canister->>Web3Auth: DoctorA Authentication
