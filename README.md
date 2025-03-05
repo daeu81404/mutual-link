@@ -215,10 +215,6 @@ npm start
 
 This starts a server at `http://localhost:8080`, proxying API requests to the replica at port 4943.
 
-## Partner Institutions
-
-Currently, we are collaborating with 10 hospitals, including Korea's top four: Seoul National University Hospital, Yonsei University Severance Hospital, Samsung Medical Center, and Asan Medical Center, to conduct pilot testing. This collaboration enables us to validate service effectiveness in real healthcare settings and continuously improve our offerings based on user feedback.
-
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
